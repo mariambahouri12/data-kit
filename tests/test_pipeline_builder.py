@@ -1,0 +1,172 @@
+# tests/test_pipeline_builder.py
+import pytest
+import pandas as pd
+import numpy as np
+from sklearn.pipeline import Pipeline
+from preprocessing.tabular.pipeline_builder import PipelineBuilder, SimplePipelineBuilder
+from preprocessing.tabular.config import PreprocessingConfig, TaskType
+
+
+class TestPipelineBuilder:
+    
+    def test_build_default_pipeline(self, sample_data):
+        """Tester la construction du pipeline par défaut"""
+        config = PreprocessingConfig()
+        builder = PipelineBuilder(config)
+        pipeline = builder.build_pipeline()
+        
+        assert isinstance(pipeline, Pipeline)
+        assert len(pipeline.steps) > 0
+        
+        # Tester le pipeline
+        X_transformed = pipeline.fit_transform(sample_data.drop('target', axis=1))
+        assert X_transformed.shape[0] > 0
+    
+    def test_build_with_imputation(self, sample_data):
+        """Tester le pipeline avec imputation"""
+        config = PreprocessingConfig(
+            imputation_method='median',
+            drop_duplicates=True
+        )
+        builder = PipelineBuilder(config)
+        pipeline = builder.build_pipeline()
+        
+        X_transformed = pipeline.fit_transform(sample_data.drop('target', axis=1))
+        
+        # Vérifier qu'il n'y a plus de valeurs manquantes
+        assert X_transformed.isnull().sum().sum() == 0
+    
+    def test_build_with_encoding(self, sample_data):
+        """Tester le pipeline avec encodage"""
+        config = PreprocessingConfig(
+            encoding_method='onehot',
+            encoding_columns=['categorical_1', 'categorical_2']
+        )
+        builder = PipelineBuilder(config)
+        pipeline = builder.build_pipeline()
+        
+        X_transformed = pipeline.fit_transform(sample_data.drop('target', axis=1))
+        
+        # Vérifier l'encodage
+        assert 'categorical_1' not in X_transformed.columns
+        assert 'categorical_2' not in X_transformed.columns
+    
+    def test_build_with_scaling(self, sample_data):
+        """Tester le pipeline avec scaling"""
+        config = PreprocessingConfig(
+            scaling_method='standard'
+        )
+        builder = PipelineBuilder(config)
+        pipeline = builder.build_pipeline()
+        
+        X_transformed = pipeline.fit_transform(sample_data.drop('target', axis=1))
+        
+        # Vérifier le scaling
+        numeric_cols = sample_data.select_dtypes(include=[np.number]).columns
+        for col in numeric_cols:
+            if col != 'target' and not X_transformed[col].isna().all():
+                assert abs(X_transformed[col].mean()) < 0.1
+    
+    def test_apply_balancing(self, sample_data):
+        """Tester l'application du rééquilibrage"""
+        config = PreprocessingConfig(
+            balancing_method='smote',
+            balancing_random_state=42
+        )
+        builder = PipelineBuilder(config)
+        
+        X = sample_data.drop('target', axis=1)
+        y = sample_data['target']
+        
+        X_resampled, y_resampled = builder.apply_balancing(X, y)
+        
+        # Vérifier que les classes sont plus équilibrées
+        original_counts = y.value_counts()
+        resampled_counts = y_resampled.value_counts()
+        
+        # Les classes devraient être plus équilibrées
+        imbalance_ratio_original = max(original_counts) / min(original_counts)
+        imbalance_ratio_resampled = max(resampled_counts) / min(resampled_counts)
+        
+        assert imbalance_ratio_resampled < imbalance_ratio_original
+    
+    def test_build_detection_pipeline(self, sample_data):
+        """Tester le pipeline de détection"""
+        builder = PipelineBuilder()
+        detection_pipeline = builder.build_detection_pipeline()
+        
+        assert isinstance(detection_pipeline, Pipeline)
+        
+        # Tester sur les données
+        detection_pipeline.fit(sample_data.drop('target', axis=1))
+    
+    def test_get_step_names(self, sample_data):
+        """Tester l'obtention des noms des étapes"""
+        config = PreprocessingConfig(
+            imputation_method='median',
+            scaling_method='standard',
+            encoding_method='onehot',
+            drop_duplicates=True
+        )
+        builder = PipelineBuilder(config)
+        steps = builder.get_step_names()
+        
+        assert 'drop_duplicates' in steps
+        assert 'imputation' in steps
+        assert 'encoding' in steps
+        assert 'scaling' in steps
+    
+    def test_get_pipeline_summary(self, sample_data):
+        """Tester le résumé du pipeline"""
+        builder = PipelineBuilder()
+        summary = builder.get_pipeline_summary()
+        
+        assert 'steps' in summary
+        assert 'n_steps' in summary
+        assert 'config' in summary
+
+
+class TestSimplePipelineBuilder:
+    
+    def test_create_default(self):
+        """Tester la création du pipeline par défaut"""
+        builder = SimplePipelineBuilder.create_default()
+        pipeline = builder.build_pipeline()
+        
+        assert isinstance(pipeline, Pipeline)
+        assert len(pipeline.steps) > 0
+    
+    def test_create_robust(self):
+        """Tester la création du pipeline robuste"""
+        builder = SimplePipelineBuilder.create_robust()
+        pipeline = builder.build_pipeline()
+        
+        assert isinstance(pipeline, Pipeline)
+        
+        # Vérifier que l'encodage target est configuré
+        assert builder.config.encoding_method.value == 'target'
+        assert builder.config.scaling_method.value == 'robust'
+    
+    def test_create_high_performance(self):
+        """Tester la création du pipeline haute performance"""
+        builder = SimplePipelineBuilder.create_high_performance()
+        pipeline = builder.build_pipeline()
+        
+        assert isinstance(pipeline, Pipeline)
+        
+        # Vérifier les configurations
+        assert builder.config.create_polynomial is True
+        assert builder.config.apply_boxcox is True
+        assert builder.config.encoding_method.value == 'catboost'
+    
+    def test_create_minimal(self):
+        """Tester la création du pipeline minimal"""
+        builder = SimplePipelineBuilder.create_minimal()
+        pipeline = builder.build_pipeline()
+        
+        assert isinstance(pipeline, Pipeline)
+        
+        # Vérifier que les options sont minimisées
+        assert builder.config.drop_duplicates is False
+        assert builder.config.drop_high_missing is False
+        assert builder.config.outlier_method.value == 'none'
