@@ -64,14 +64,62 @@ class UploadManager:
         """Charger les statistiques"""
         stats_file = self.base_dir / 'stats.json'
         if stats_file.exists():
-            with open(stats_file, 'r') as f:
-                self.stats = json.load(f)
+            try:
+                with open(stats_file, 'r') as f:
+                    self.stats = json.load(f)
+            except:
+                self.stats = {'total_uploads': 0, 'total_size': 0, 'by_type': {}}
     
     def _save_stats(self):
         """Sauvegarder les statistiques"""
         stats_file = self.base_dir / 'stats.json'
         with open(stats_file, 'w') as f:
             json.dump(self.stats, f, indent=2)
+    
+    def _fix_dataframe_types(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Corriger les types du DataFrame pour éviter les problèmes Arrow.
+        """
+        if df is None or df.empty:
+            return df
+        
+        df_copy = df.copy()
+        
+        for col in df_copy.columns:
+            try:
+                # Convertir StringDtype en object
+                if str(df_copy[col].dtype) == 'string':
+                    df_copy[col] = df_copy[col].astype('object')
+                    df_copy[col] = df_copy[col].fillna('')
+                
+                # Convertir category en object
+                elif df_copy[col].dtype.name == 'category':
+                    df_copy[col] = df_copy[col].astype('object')
+                    df_copy[col] = df_copy[col].fillna('')
+                
+                # Convertir les colonnes object en string
+                elif df_copy[col].dtype == 'object':
+                    df_copy[col] = df_copy[col].fillna('')
+                    df_copy[col] = df_copy[col].astype(str)
+                
+                # Convertir les colonnes avec des types pandas non standard
+                elif 'int' in str(df_copy[col].dtype) and not pd.api.types.is_integer_dtype(df_copy[col]):
+                    df_copy[col] = df_copy[col].astype('float64')
+                    df_copy[col] = df_copy[col].fillna(0)
+                
+                # Convertir les colonnes avec des types pandas non standard
+                elif 'float' in str(df_copy[col].dtype) and not pd.api.types.is_float_dtype(df_copy[col]):
+                    df_copy[col] = df_copy[col].astype('float64')
+                    df_copy[col] = df_copy[col].fillna(0.0)
+                
+            except Exception:
+                try:
+                    df_copy[col] = df_copy[col].astype(str)
+                    df_copy[col] = df_copy[col].fillna('')
+                except:
+                    pass
+        
+        return df_copy
     
     def upload(self, 
                file_content: bytes, 
@@ -179,27 +227,51 @@ class UploadManager:
             else:
                 return {'error': 'Unsupported file type'}
             
+            # Corriger les types du DataFrame
+            df = self._fix_dataframe_types(df)
+            
+            # Convertir les types pandas en types Python natifs
+            dtypes_dict = {}
+            for k, v in df.dtypes.to_dict().items():
+                dtypes_dict[str(k)] = str(v)
+            
+            nunique_dict = {}
+            for k, v in df.nunique().to_dict().items():
+                nunique_dict[str(k)] = int(v) if not pd.isna(v) else 0
+            
+            missing_dict = {}
+            for k, v in df.isnull().sum().to_dict().items():
+                missing_dict[str(k)] = int(v) if not pd.isna(v) else 0
+            
+            memory_dict = {}
+            for k, v in df.memory_usage(deep=True).to_dict().items():
+                memory_dict[str(k)] = float(v / (1024 * 1024)) if not pd.isna(v) else 0.0
+            
+            dtypes_summary = {}
+            for k, v in df.dtypes.value_counts().to_dict().items():
+                dtypes_summary[str(k)] = int(v) if not pd.isna(v) else 0
+            
             # Analyse de base
             analysis = {
                 'shape': {
-                    'rows': len(df),
-                    'columns': len(df.columns)
+                    'rows': int(len(df)),
+                    'columns': int(len(df.columns))
                 },
                 'columns': {
-                    'names': df.columns.tolist(),
-                    'dtypes': df.dtypes.astype(str).to_dict(),
-                    'n_unique': df.nunique().to_dict()
+                    'names': [str(c) for c in df.columns.tolist()],
+                    'dtypes': dtypes_dict,
+                    'n_unique': nunique_dict
                 },
                 'missing': {
-                    'total': df.isnull().sum().sum(),
-                    'percentage': (df.isnull().sum().sum() / df.size) * 100,
-                    'by_column': df.isnull().sum().to_dict()
+                    'total': int(df.isnull().sum().sum()) if not pd.isna(df.isnull().sum().sum()) else 0,
+                    'percentage': float((df.isnull().sum().sum() / df.size) * 100) if df.size > 0 else 0,
+                    'by_column': missing_dict
                 },
                 'memory_usage': {
-                    'total': df.memory_usage(deep=True).sum() / (1024 * 1024),  # MB
-                    'by_column': (df.memory_usage(deep=True) / (1024 * 1024)).to_dict()
+                    'total': float(df.memory_usage(deep=True).sum() / (1024 * 1024)),
+                    'by_column': memory_dict
                 },
-                'dtypes_summary': df.dtypes.value_counts().to_dict(),
+                'dtypes_summary': dtypes_summary,
                 'potential_targets': self._detect_targets(df)
             }
             
@@ -224,7 +296,8 @@ class UploadManager:
                 score += 1
             
             # Cardinalité appropriée pour classification
-            if df[col].nunique() <= 20 and df[col].nunique() > 1:
+            n_unique = df[col].nunique()
+            if 1 < n_unique <= 20:
                 score += 1
             
             # Type approprié
@@ -233,11 +306,11 @@ class UploadManager:
             
             if score >= 2:
                 targets.append({
-                    'column': col,
+                    'column': str(col),
                     'dtype': str(df[col].dtype),
-                    'n_unique': df[col].nunique(),
-                    'score': score,
-                    'suggested_task': 'classification' if df[col].nunique() <= 20 else 'regression'
+                    'n_unique': int(n_unique) if not pd.isna(n_unique) else 0,
+                    'score': float(score),
+                    'suggested_task': 'classification' if n_unique <= 20 else 'regression'
                 })
         
         # Trier par score
@@ -276,6 +349,9 @@ class UploadManager:
             df = pd.read_parquet(file_path)
         else:
             raise ValueError(f"Unsupported file type: {extension}")
+        
+        # Corriger les types
+        df = self._fix_dataframe_types(df)
         
         return df, metadata
     
@@ -316,9 +392,9 @@ class UploadManager:
         metadata['processed'] = {
             'file_path': str(processed_path),
             'format': format,
-            'shape': df.shape,
+            'shape': [int(df.shape[0]), int(df.shape[1])],
             'processed_at': datetime.now().isoformat(),
-            'columns': df.columns.tolist()
+            'columns': [str(c) for c in df.columns.tolist()]
         }
         
         # Sauvegarder les métadonnées mises à jour

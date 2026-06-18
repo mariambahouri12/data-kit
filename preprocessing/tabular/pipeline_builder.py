@@ -58,6 +58,26 @@ class PipelineBuilder:
             DuplicateDetector()
         ]
     
+    def _get_enum_value(self, value, enum_class, default):
+        """
+        Récupérer la valeur d'un enum ou d'une chaîne.
+        
+        Args:
+            value: Valeur à convertir (str ou enum)
+            enum_class: Classe enum
+            default: Valeur par défaut
+        
+        Returns:
+            Valeur enum
+        """
+        if value is None:
+            return default
+        if isinstance(value, str):
+            return enum_class(value)
+        if hasattr(value, 'value'):
+            return value
+        return value
+    
     def build_pipeline(self, 
                        X: Optional[pd.DataFrame] = None,
                        y: Optional[pd.Series] = None) -> Pipeline:
@@ -78,20 +98,40 @@ class PipelineBuilder:
             steps.append(('drop_high_missing', self._create_drop_high_missing()))
         
         # 3. Imputation
-        if self.config.imputation_method != ImputationMethod.DROP:
+        imputation_method = self.config.imputation_method
+        if imputation_method is None or imputation_method == ImputationMethod.DROP or imputation_method == 'drop':
+            pass  # Ne pas ajouter l'imputation
+        else:
+            # Convertir en valeur de chaîne si nécessaire
+            if hasattr(imputation_method, 'value'):
+                strategy = imputation_method.value
+            else:
+                strategy = str(imputation_method)
+            
             imputer = MissingValueCleaner(
-                strategy=self.config.imputation_method.value,
+                strategy=strategy,
                 fill_value=self.config.imputation_fill_value,
                 columns=self.config.imputation_columns
             )
             steps.append(('imputation', imputer))
         
         # 4. Outlier handling
-        if self.config.outlier_method != OutlierMethod.NONE:
+        outlier_method = self.config.outlier_method
+        if outlier_method is not None and outlier_method != OutlierMethod.NONE and outlier_method != 'none':
+            if hasattr(outlier_method, 'value'):
+                method = outlier_method.value
+            else:
+                method = str(outlier_method)
+            
+            if hasattr(self.config.outlier_action, 'value'):
+                action = self.config.outlier_action.value
+            else:
+                action = str(self.config.outlier_action)
+            
             outlier_cleaner = OutlierCleaner(
-                method=self.config.outlier_method.value,
+                method=method,
                 threshold=self.config.outlier_threshold,
-                action=self.config.outlier_action.value,
+                action=action,
                 columns=self.config.outlier_columns
             )
             steps.append(('outlier_handling', outlier_cleaner))
@@ -131,9 +171,15 @@ class PipelineBuilder:
             )))
         
         # 7. Encoding
-        if self.config.encoding_method != EncodingMethod.NONE:
+        encoding_method = self.config.encoding_method
+        if encoding_method is not None and encoding_method != EncodingMethod.NONE and encoding_method != 'none':
+            if hasattr(encoding_method, 'value'):
+                method = encoding_method.value
+            else:
+                method = str(encoding_method)
+            
             encoder = CategoricalEncoder(
-                method=self.config.encoding_method.value,
+                method=method,
                 columns=self.config.encoding_columns,
                 max_categories=self.config.encoding_max_categories,
                 min_frequency=self.config.encoding_min_frequency,
@@ -144,9 +190,15 @@ class PipelineBuilder:
             steps.append(('encoding', encoder))
         
         # 8. Scaling
-        if self.config.scaling_method != ScalingMethod.NONE:
+        scaling_method = self.config.scaling_method
+        if scaling_method is not None and scaling_method != ScalingMethod.NONE and scaling_method != 'none':
+            if hasattr(scaling_method, 'value'):
+                method = scaling_method.value
+            else:
+                method = str(scaling_method)
+            
             scaler = FeatureScaler(
-                method=self.config.scaling_method.value,
+                method=method,
                 columns=self.config.scaling_columns,
                 with_mean=self.config.scaling_with_mean,
                 with_std=self.config.scaling_with_std
@@ -154,13 +206,19 @@ class PipelineBuilder:
             steps.append(('scaling', scaler))
         
         # 9. Feature selection
-        if self.config.feature_selection_method != FeatureSelectionMethod.NONE:
+        feature_selection_method = self.config.feature_selection_method
+        if feature_selection_method is not None and feature_selection_method != FeatureSelectionMethod.NONE and feature_selection_method != 'none':
+            if hasattr(feature_selection_method, 'value'):
+                method = feature_selection_method.value
+            else:
+                method = str(feature_selection_method)
+            
             selector = FeatureSelector(
-                method=self.config.feature_selection_method.value,
+                method=method,
                 threshold=self.config.feature_selection_threshold,
                 k=self.config.feature_selection_k,
                 columns=self.config.feature_selection_columns,
-                task_type=self.config.task_type.value  # Ajout du task_type
+                task_type=self.config.task_type.value if hasattr(self.config.task_type, 'value') else str(self.config.task_type)
             )
             steps.append(('feature_selection', selector))
         
@@ -194,11 +252,17 @@ class PipelineBuilder:
         Returns:
             (X_resampled, y_resampled)
         """
-        if self.config.balancing_method == BalancingMethod.NONE:
+        balancing_method = self.config.balancing_method
+        if balancing_method is None or balancing_method == BalancingMethod.NONE or balancing_method == 'none':
             return X, y
         
+        if hasattr(balancing_method, 'value'):
+            method = balancing_method.value
+        else:
+            method = str(balancing_method)
+        
         balancer = ClassBalancer(
-            method=self.config.balancing_method,
+            method=method,
             sampling_strategy=self.config.balancing_sampling_strategy,
             random_state=self.config.balancing_random_state
         )
@@ -252,7 +316,7 @@ class SimplePipelineBuilder(PipelineBuilder):
             encoding_method='onehot',
             outlier_method='iqr',
             outlier_threshold=1.5,
-            encoding_sparse=False  # Par défaut dense pour la simplicité
+            encoding_sparse=False
         )
     
     @classmethod

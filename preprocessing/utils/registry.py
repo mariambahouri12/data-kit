@@ -8,7 +8,7 @@ import inspect
 import importlib
 import pkgutil
 import warnings
-from .base import BaseComponent
+from ..base import BaseComponent
 
 
 class Registry:
