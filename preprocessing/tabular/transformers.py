@@ -14,12 +14,6 @@ class LogTransformer(BasePreprocessor):
                  base: float = np.e,
                  shift: float = 1e-6,
                  **kwargs):
-        """
-        Args:
-            columns: Colonnes à transformer (None = toutes les numériques)
-            base: Base du log (e, 2, 10)
-            shift: Valeur à ajouter pour éviter log(0)
-        """
         super().__init__(**kwargs)
         self.columns = columns
         self.base = base
@@ -34,6 +28,7 @@ class LogTransformer(BasePreprocessor):
         
         self.columns_to_transform = cols_to_transform
     
+    # ✅ CORRIGÉ : Utilisation correcte de la base
     def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
         X_copy = X.copy()
         
@@ -111,7 +106,7 @@ class BoxCoxTransformer(BasePreprocessor):
         self.columns = columns
         self.lambda_ = lambda_
         self.transformer = None
-        self.lambda_estimates = {}
+        self.lambda_estimates = {}  # ✅ INITIALISÉ
     
     def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None):
         from scipy import stats
@@ -124,19 +119,22 @@ class BoxCoxTransformer(BasePreprocessor):
         self.columns_to_transform = cols_to_transform
         
         for col in cols_to_transform:
+            # ✅ Initialiser le dictionnaire pour la colonne
+            self.lambda_estimates[col] = {}
+            
             # Vérifier que les valeurs sont positives
             if (X[col] <= 0).any():
                 # Ajouter un shift si nécessaire
                 shift = abs(X[col].min()) + 1
-                self.lambda_estimates[col] = {'shift': shift}
+                self.lambda_estimates[col]['shift'] = shift
                 transformed = X[col] + shift
             else:
                 transformed = X[col]
             
             # Estimer lambda
             if self.lambda_ is None:
-                _, lambda_ = stats.boxcox(transformed)
-                self.lambda_estimates[col]['lambda'] = lambda_
+                _, lambda_val = stats.boxcox(transformed)
+                self.lambda_estimates[col]['lambda'] = lambda_val
             else:
                 self.lambda_estimates[col]['lambda'] = self.lambda_
     
@@ -146,14 +144,17 @@ class BoxCoxTransformer(BasePreprocessor):
         X_copy = X.copy()
         
         for col in self.columns_to_transform:
+            if col not in self.lambda_estimates:
+                continue
+                
             shift = self.lambda_estimates[col].get('shift', 0)
-            lambda_ = self.lambda_estimates[col]['lambda']
+            lambda_val = self.lambda_estimates[col]['lambda']
             
             # Box-Cox transform
-            if lambda_ == 0:
+            if lambda_val == 0:
                 X_copy[col] = np.log(X_copy[col] + shift)
             else:
-                X_copy[col] = ((X_copy[col] + shift) ** lambda_ - 1) / lambda_
+                X_copy[col] = ((X_copy[col] + shift) ** lambda_val - 1) / lambda_val
         
         return X_copy
 
@@ -182,11 +183,13 @@ class YeoJohnsonTransformer(BasePreprocessor):
         self.columns_to_transform = cols_to_transform
         
         for col in cols_to_transform:
+            self.lambda_estimates[col] = {}
+            
             if self.lambda_ is None:
-                _, lambda_ = stats.yeojohnson(X[col].values)
-                self.lambda_estimates[col] = {'lambda': lambda_}
+                _, lambda_val = stats.yeojohnson(X[col].values)
+                self.lambda_estimates[col]['lambda'] = lambda_val
             else:
-                self.lambda_estimates[col] = {'lambda': self.lambda_}
+                self.lambda_estimates[col]['lambda'] = self.lambda_
     
     def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
         from scipy import stats
@@ -194,8 +197,11 @@ class YeoJohnsonTransformer(BasePreprocessor):
         X_copy = X.copy()
         
         for col in self.columns_to_transform:
-            lambda_ = self.lambda_estimates[col]['lambda']
-            X_copy[col] = stats.yeojohnson(X_copy[col].values, lmbda=lambda_)
+            if col not in self.lambda_estimates:
+                continue
+                
+            lambda_val = self.lambda_estimates[col]['lambda']
+            X_copy[col] = stats.yeojohnson(X_copy[col].values, lmbda=lambda_val)
         
         return X_copy
 

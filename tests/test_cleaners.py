@@ -1,4 +1,3 @@
-# tests/test_cleaners.py
 import pytest
 import pandas as pd
 import numpy as np
@@ -17,10 +16,7 @@ class TestMissingValueCleaner:
         cleaner.fit(sample_data)
         transformed = cleaner.transform(sample_data)
         
-        # Vérifier qu'il n'y a plus de valeurs manquantes
         assert transformed['numeric_1'].isnull().sum() == 0
-        
-        # Vérifier que la moyenne est conservée (approximativement)
         original_mean = sample_data['numeric_1'].mean()
         imputed_mean = transformed['numeric_1'].mean()
         assert abs(original_mean - imputed_mean) < 0.01
@@ -35,10 +31,7 @@ class TestMissingValueCleaner:
         cleaner.fit(sample_data)
         transformed = cleaner.transform(sample_data)
         
-        # Vérifier qu'il n'y a plus de valeurs manquantes
         assert transformed['numeric_1'].isnull().sum() == 0
-        
-        # Vérifier que la médiane est conservée
         original_median = sample_data['numeric_1'].median()
         imputed_median = transformed['numeric_1'].median()
         assert abs(original_median - imputed_median) < 0.01
@@ -54,7 +47,6 @@ class TestMissingValueCleaner:
         cleaner.fit(sample_data)
         transformed = cleaner.transform(sample_data)
         
-        # Vérifier que les valeurs manquantes sont remplacées par la constante
         nan_mask = sample_data['numeric_1'].isna()
         assert (transformed.loc[nan_mask, 'numeric_1'] == 999).all()
     
@@ -68,7 +60,6 @@ class TestMissingValueCleaner:
         cleaner.fit(sample_data)
         transformed = cleaner.transform(sample_data)
         
-        # La valeur par défaut est 0
         nan_mask = sample_data['numeric_1'].isna()
         assert (transformed.loc[nan_mask, 'numeric_1'] == 0).all()
     
@@ -82,8 +73,8 @@ class TestMissingValueCleaner:
         cleaner.fit(sample_data)
         transformed = cleaner.transform(sample_data)
         
-        # Vérifier que les lignes avec NaN sont supprimées
         assert transformed['numeric_1'].isnull().sum() == 0
+        assert len(transformed) <= len(sample_data)
         assert len(transformed) < len(sample_data)
     
     def test_categorical_imputation(self, sample_data):
@@ -93,7 +84,6 @@ class TestMissingValueCleaner:
         cleaner.fit(sample_data)
         transformed = cleaner.transform(sample_data)
         
-        # Vérifier qu'il n'y a plus de valeurs manquantes
         assert transformed['categorical_1'].isnull().sum() == 0
     
     def test_knn_imputation(self, sample_data):
@@ -106,7 +96,6 @@ class TestMissingValueCleaner:
         cleaner.fit(sample_data)
         transformed = cleaner.transform(sample_data)
         
-        # Vérifier qu'il n'y a plus de valeurs manquantes
         assert transformed['numeric_1'].isnull().sum() == 0
         assert transformed['numeric_2'].isnull().sum() == 0
 
@@ -125,13 +114,11 @@ class TestOutlierCleaner:
         cleaner.fit(sample_data)
         transformed = cleaner.transform(sample_data)
         
-        # Vérifier que les outliers sont traités
         Q1 = sample_data['numeric_2'].quantile(0.25)
         Q3 = sample_data['numeric_2'].quantile(0.75)
         IQR = Q3 - Q1
         upper_bound = Q3 + 1.5 * IQR
         
-        # Les valeurs ne doivent pas dépasser upper_bound
         assert transformed['numeric_2'].max() <= upper_bound
     
     def test_drop_outliers(self, sample_data):
@@ -146,7 +133,6 @@ class TestOutlierCleaner:
         cleaner.fit(sample_data)
         transformed = cleaner.transform(sample_data)
         
-        # Les outliers doivent être supprimés
         Q1 = sample_data['numeric_2'].quantile(0.25)
         Q3 = sample_data['numeric_2'].quantile(0.75)
         IQR = Q3 - Q1
@@ -170,7 +156,7 @@ class TestDuplicateCleaner:
         cleaner.fit(data)
         transformed = cleaner.transform(data)
         
-        assert len(transformed) == 3  # 3 valeurs uniques
+        assert len(transformed) == 3
         
     def test_keep_first(self):
         """Tester keep='first'"""
@@ -183,7 +169,6 @@ class TestDuplicateCleaner:
         cleaner.fit(data)
         transformed = cleaner.transform(data)
         
-        # La première occurrence est conservée
         assert transformed.iloc[1]['a'] == 2
         assert len(transformed) == 3
     
@@ -198,7 +183,6 @@ class TestDuplicateCleaner:
         cleaner.fit(data)
         transformed = cleaner.transform(data)
         
-        # La dernière occurrence est conservée
         assert transformed.iloc[1]['a'] == 2
         assert len(transformed) == 3
     
@@ -214,5 +198,4 @@ class TestDuplicateCleaner:
         cleaner.fit(data)
         transformed = cleaner.transform(data)
         
-        # Seulement 2 valeurs uniques pour 'a'
         assert len(transformed) == 2

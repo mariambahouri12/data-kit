@@ -40,10 +40,7 @@ class TestClassBalancer:
         
         X_resampled, y_resampled = balancer.fit_resample(X, y)
         
-        # Le nombre d'échantillons doit avoir augmenté
         assert len(X_resampled) > len(X)
-        
-        # Les classes doivent être équilibrées
         counts = y_resampled.value_counts()
         assert abs(counts[0] - counts[1]) <= 1
     
@@ -59,10 +56,7 @@ class TestClassBalancer:
         
         X_resampled, y_resampled = balancer.fit_resample(X, y)
         
-        # Le nombre d'échantillons doit avoir diminué
         assert len(X_resampled) < len(X)
-        
-        # Les classes doivent être équilibrées
         counts = y_resampled.value_counts()
         assert abs(counts[0] - counts[1]) <= 1
     
@@ -78,7 +72,6 @@ class TestClassBalancer:
         
         X_resampled, y_resampled = balancer.fit_resample(X, y)
         
-        # Vérifier que le rééquilibrage fonctionne
         counts = y_resampled.value_counts()
         assert len(counts) == 2
         assert len(X_resampled) > 0
@@ -95,7 +88,6 @@ class TestClassBalancer:
         
         X_resampled, y_resampled = balancer.fit_resample(X, y)
         
-        # Vérifier que le rééquilibrage fonctionne
         counts = y_resampled.value_counts()
         assert len(counts) == 2
         assert len(X_resampled) > 0
@@ -144,7 +136,7 @@ class TestClassBalancer:
         assert 'suggestions' in suggestions
         assert len(suggestions['suggestions']) > 0
     
-    def test_balancer_with_categorical_target(self, sample_data):
+    def test_balancer_with_categorical_target(self, sample_data_imbalanced):
         """Tester avec une cible catégorielle"""
         balancer = ClassBalancer(
             method='smote',
@@ -152,11 +144,16 @@ class TestClassBalancer:
         )
         
         # Créer une target catégorielle
-        y_categorical = pd.Series(['class_0', 'class_1'] * 500)
+        np.random.seed(42)
+        y_categorical = pd.Series(
+            np.random.choice(['class_0', 'class_1'], 1000, p=[0.9, 0.1]),
+            dtype='object'  # ✅ Forcer en object pour éviter StringDtype
+        )
         
-        X = sample_data.drop('target', axis=1)
+        X = sample_data_imbalanced.drop('target', axis=1)
         
         X_resampled, y_resampled = balancer.fit_resample(X, y_categorical)
         
         assert len(X_resampled) > 0
-        assert y_resampled.dtype == 'object' or y_resampled.dtype.name == 'category'
+        # ✅ Vérifier que c'est un objet (pandas 2.0)
+        assert y_resampled.dtype == 'object' or y_resampled.dtype.name == 'object'

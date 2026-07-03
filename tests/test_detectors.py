@@ -1,4 +1,3 @@
-# tests/test_detectors.py
 import pytest
 import pandas as pd
 import numpy as np
@@ -19,10 +18,8 @@ class TestMissingValueDetector:
         
         detector.fit(sample_data)
         
-        # Vérifier que des problèmes sont détectés
         assert len(detector.problems) > 0
         
-        # Vérifier le rapport
         report = detector.get_report()
         assert 'problems' in report
         assert 'summary' in report
@@ -48,10 +45,7 @@ class TestOutlierDetector:
         
         detector.fit(sample_data)
         
-        # Devrait détecter des outliers dans numeric_2
         assert len(detector.problems) > 0
-        
-        # Vérifier qu'il y a des statistiques
         assert len(detector.outlier_stats) > 0
     
     def test_detect_outliers_zscore(self, sample_data):
@@ -60,7 +54,6 @@ class TestOutlierDetector:
         
         detector.fit(sample_data)
         
-        # Les outliers extrêmes sont détectés
         assert len(detector.problems) > 0
 
 
@@ -72,16 +65,14 @@ class TestCorrelationDetector:
             'a': np.random.randn(100),
             'b': np.random.randn(100) * 2,
             'c': np.random.randn(100) * 0.5,
-            'd': np.random.randn(100)  # Colonne non corrélée
+            'd': np.random.randn(100)
         })
         
-        # Ajouter une corrélation
         data['e'] = data['a'] * 2 + np.random.randn(100) * 0.1
         
         detector = CorrelationDetector(threshold=0.8)
         detector.fit(data)
         
-        # Devrait détecter la corrélation entre a et e
         assert len(detector.problems) > 0
     
     def test_no_correlations(self):
@@ -106,10 +97,8 @@ class TestCardinalityDetector:
         
         detector.fit(sample_data)
         
-        # categorical_1 a 4 catégories, devrait être détecté
         assert len(detector.problems) > 0
         
-        # Vérifier que la colonne problématique est identifiée
         problem_columns = [p.get('column') for p in detector.problems]
         assert 'categorical_1' in problem_columns
 

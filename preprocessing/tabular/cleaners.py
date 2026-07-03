@@ -21,11 +21,11 @@ class MissingValueCleaner(BasePreprocessor):
             columns: Colonnes à traiter (None = toutes)
         """
         super().__init__(**kwargs)
-        # Correction: gestion de 'constant'
         self.strategy = strategy
         self.fill_value = fill_value
         self.columns = columns
         self.imputer = None
+        self.cat_imputer = None
         self.column_types = {}
     
     def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None):
@@ -38,7 +38,7 @@ class MissingValueCleaner(BasePreprocessor):
         
         # Séparer les types de colonnes
         numeric_cols = X[cols_to_impute].select_dtypes(include=[np.number]).columns
-        categorical_cols = X[cols_to_impute].select_dtypes(include=['object', 'category']).columns
+        categorical_cols = X[cols_to_impute].select_dtypes(include=['object', 'category', 'string']).columns
         
         self.column_types = {
             'numeric': numeric_cols.tolist(),
@@ -53,7 +53,7 @@ class MissingValueCleaner(BasePreprocessor):
                 self.imputer = KNNImputer(n_neighbors=5)
                 self.imputer.fit(X[numeric_cols])
             else:
-                # Correction: gestion de 'constant'
+                # ✅ CORRIGÉ : Gestion de 'constant' avec valeur par défaut
                 if self.strategy == 'constant' and self.fill_value is None:
                     self.fill_value = 0
                     import warnings
@@ -87,7 +87,7 @@ class MissingValueCleaner(BasePreprocessor):
         
         # Traiter les colonnes catégorielles
         categorical_cols = self.column_types['categorical']
-        if len(categorical_cols) > 0 and hasattr(self, 'cat_imputer'):
+        if len(categorical_cols) > 0 and self.cat_imputer is not None:
             X_copy[categorical_cols] = self.cat_imputer.transform(X_copy[categorical_cols])
         
         return X_copy
@@ -102,13 +102,6 @@ class OutlierCleaner(BasePreprocessor):
                  action: str = 'winsorize',
                  columns: Optional[List[str]] = None,
                  **kwargs):
-        """
-        Args:
-            method: 'iqr' ou 'zscore'
-            threshold: Seuil
-            action: 'winsorize' ou 'drop'
-            columns: Colonnes à traiter (None = toutes)
-        """
         super().__init__(**kwargs)
         self.method = method
         self.threshold = threshold

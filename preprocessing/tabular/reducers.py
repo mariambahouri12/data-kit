@@ -1,4 +1,3 @@
-# preprocessing/tabular/reducers.py
 import pandas as pd
 import numpy as np
 from typing import Optional, List, Dict, Any, Union
@@ -22,7 +21,7 @@ class FeatureSelector(BasePreprocessor):
                  threshold: float = 0.01,
                  k: Optional[int] = None,
                  columns: Optional[List[str]] = None,
-                 task_type: str = 'classification',  # Nouveau
+                 task_type: str = 'classification',
                  **kwargs):
         super().__init__(**kwargs)
         self.method = method
@@ -80,20 +79,17 @@ class FeatureSelector(BasePreprocessor):
             self.selected_features = X.columns.tolist()
             return
         
-        # Encoder y si nécessaire
         if y.dtype == 'object' or y.dtype.name == 'category':
             le = LabelEncoder()
             y_encoded = le.fit_transform(y)
         else:
             y_encoded = y
         
-        # Correction: utiliser task_type au lieu de len(np.unique)
         if self.task_type == TaskType.CLASSIFICATION:
             scores = mutual_info_classif(X[numeric_cols], y_encoded, random_state=42)
         else:
             scores = mutual_info_regression(X[numeric_cols], y_encoded, random_state=42)
         
-        # Trier par score
         sorted_cols = sorted(
             zip(numeric_cols, scores),
             key=lambda x: x[1],
@@ -114,7 +110,6 @@ class FeatureSelector(BasePreprocessor):
             self.selected_features = X.columns.tolist()
             return
         
-        # Correction: utiliser task_type
         if self.task_type == TaskType.CLASSIFICATION:
             model = RandomForestClassifier(n_estimators=100, random_state=42)
         else:
@@ -145,7 +140,6 @@ class FeatureSelector(BasePreprocessor):
             self.selected_features = X.columns.tolist()
             return
         
-        # Correction: utiliser task_type
         if self.task_type == TaskType.CLASSIFICATION:
             model = RandomForestClassifier(n_estimators=100, random_state=42)
         else:
@@ -262,8 +256,9 @@ class LDAReducer(BasePreprocessor):
         self.lda = LinearDiscriminantAnalysis(n_components=n_components)
         self.lda.fit(X[cols_to_reduce], y)
         
-        n_components = self.lda.n_components_
-        self.feature_names = [f'LD{i+1}' for i in range(n_components)]
+        # Correction : LDA n'a pas n_components_, on utilise n_components
+        n_components_actual = self.lda.n_components
+        self.feature_names = [f'LD{i+1}' for i in range(n_components_actual)]
     
     def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
         X_copy = X.copy()

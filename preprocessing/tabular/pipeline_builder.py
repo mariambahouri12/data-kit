@@ -1,4 +1,5 @@
 # preprocessing/tabular/pipeline_builder.py
+# Remarque : une limite avec la configuration actuelle : on applique la meme strategie pour toutes les colonnes -> si on veux , ca va etre plus complexe mais plus flexible -> à faire comme amélioration apres
 from typing import Optional, List, Dict, Any, Union
 import pandas as pd
 import numpy as np
@@ -39,55 +40,62 @@ from .feature_engineering import (
 
 class PipelineBuilder:
     """
-    Constructeur de pipeline de prétraitement flexible.
+    Flexible preprocessing pipeline builder
     """
     
-    def __init__(self, config: Optional[PreprocessingConfig] = None):
-        self.config = config or PreprocessingConfig()
-        self.steps = []
-        self.detectors = []
-        self._build_detectors()
+    def __init__(self, config: Optional[PreprocessingConfig] = None):  # fonction constructeur s'éxecute automatiquement quand on crée un nouvel objet
+        # le mot self répresente l'objet qu'on est en train de creer
+        # Optional signfie ce parametre peut aussi etre None , None si l'utilisateur ne donne rien donc valeur par défaut 
+        self.config = config or PreprocessingConfig() # si l'utilisateur a donné une config on l'utilise sinon on en crée une nouvelle par défaut 
+        self.steps = [] # pour stocker les etapes apres
+        self.detectors = [] # pour ajouter les détecteurs 
+        self._build_detectors() # le _ indique que c'est une méthode privée(interne)
     
-    def _build_detectors(self):
-        """Construire les détecteurs"""
+    def _build_detectors(self): # creer les détecteurs et les stocke dans self.detectors
+        """Build the detectors"""
         self.detectors = [
-            MissingValueDetector(threshold=0.05),
+            MissingValueDetector(threshold=0.05), # detecter valeurs manquantes >5%
             OutlierDetector(method='iqr', threshold=1.5),
-            CorrelationDetector(threshold=0.8),
-            CardinalityDetector(max_categories=50),
-            DuplicateDetector()
+            CorrelationDetector(threshold=0.8), # detécte corrélation >0.8
+            CardinalityDetector(max_categories=50), # détecte trop de catégories
+            DuplicateDetector()  # detecte doublons 
         ]
     
-    def _get_enum_value(self, value, enum_class, default):
+    def _get_enum_value(self, value, enum_class, default): # cette fonction prend une valeur qui peut etre Enum , string ou None et la convertit en Enum valide
+       # value : valeur à convertir , enum_class la classe Enum à utiliser, default str ou Enum : valeur par défaut si value est None
+       # on utilise cette fonction pour uniformiser -> pour toujours avoir Enum
+       # cette fonction est privée car utilisée uniquement à l'intérieur de la classe PipelineBuilder
         """
-        Récupérer la valeur d'un enum ou d'une chaîne.
-        
-        Args:
-            value: Valeur à convertir (str ou enum)
-            enum_class: Classe enum
-            default: Valeur par défaut
-        
-        Returns:
-            Valeur enum
+       Get the value from an enum or a string.
+
+           Args:
+             value: Value to convert (str or enum)
+             enum_class: Enum class
+            default: Default value
+
+         Returns:
+            Enum value
         """
+        #
         if value is None:
             return default
         if isinstance(value, str):
             return enum_class(value)
-        if hasattr(value, 'value'):
+        if hasattr(value, 'value'): # verifier si value est un Enum ( ou a un attribut 'value')
+            # hasattr verifie si l'objet possede un attribut avec ce nom -> si oui c'est un Enum - > on le retourne  tel quel
             return value
-        return value
-    
+        return value # c'est le cas par défaut 
+    # cette fonction maintenant construit un pipeline sklearn
     def build_pipeline(self, 
-                       X: Optional[pd.DataFrame] = None,
-                       y: Optional[pd.Series] = None) -> Pipeline:
+                       X: Optional[pd.DataFrame] = None, # les donnees d'entree
+                       y: Optional[pd.Series] = None) -> Pipeline: # ce qu'on veut prédire
         """
-        Construire le pipeline complet.
+        Build the complete pipeline.
         
-        NOTE: Le balancer n'est PAS inclus dans le pipeline sklearn.
-        Utilisez la méthode apply_balancing() séparément.
+        NOTE: The balancer is NOT included in the sklearn pipeline
+        Use the apply_balancing() method separately
         """
-        steps = []
+        steps = [] # pour stocker les étapes
         
         # 1. Drop duplicates
         if self.config.drop_duplicates:
@@ -99,10 +107,10 @@ class PipelineBuilder:
         
         # 3. Imputation
         imputation_method = self.config.imputation_method
-        if imputation_method is None or imputation_method == ImputationMethod.DROP or imputation_method == 'drop':
+        if imputation_method is None or imputation_method == ImputationMethod.DROP or imputation_method == 'drop': # qui ecrit ca exactement , plus on a dit qu'on va utiliser toujours Enum donc pourquoi drop?
             pass  # Ne pas ajouter l'imputation
         else:
-            # Convertir en valeur de chaîne si nécessaire
+            # Convertir en valeur de chaîne si nécessaire -> ici on converit en string car la classe MissingValueCleaner attendent ( et les bibliothèques sklearn) attendent une string en paramètre
             if hasattr(imputation_method, 'value'):
                 strategy = imputation_method.value
             else:
@@ -110,27 +118,27 @@ class PipelineBuilder:
             
             imputer = MissingValueCleaner(
                 strategy=strategy,
-                fill_value=self.config.imputation_fill_value,
-                columns=self.config.imputation_columns
+                fill_value=self.config.imputation_fill_value,  # une valeur qu'on va utiliser pour remplacer les valeurs manquantes quand on utilise la stratégie constant
+                columns=self.config.imputation_columns # les colonnes à traiter 
             )
             steps.append(('imputation', imputer))
         
         # 4. Outlier handling
-        outlier_method = self.config.outlier_method
+        outlier_method = self.config.outlier_method # pour detecter
         if outlier_method is not None and outlier_method != OutlierMethod.NONE and outlier_method != 'none':
             if hasattr(outlier_method, 'value'):
                 method = outlier_method.value
             else:
                 method = str(outlier_method)
             
-            if hasattr(self.config.outlier_action, 'value'):
+            if hasattr(self.config.outlier_action, 'value'): # pour traiter
                 action = self.config.outlier_action.value
             else:
                 action = str(self.config.outlier_action)
             
             outlier_cleaner = OutlierCleaner(
                 method=method,
-                threshold=self.config.outlier_threshold,
+                threshold=self.config.outlier_threshold, # le seuil de détection
                 action=action,
                 columns=self.config.outlier_columns
             )
@@ -242,8 +250,8 @@ class PipelineBuilder:
     
     def apply_balancing(self, X: pd.DataFrame, y: pd.Series) -> tuple:
         """
-        Appliquer le rééquilibrage séparément.
-        À utiliser AVANT l'entraînement du modèle.
+        Apply the balancing separately.
+        To be used BEFORE model training.
         
         Args:
             X: Features
@@ -254,7 +262,7 @@ class PipelineBuilder:
         """
         balancing_method = self.config.balancing_method
         if balancing_method is None or balancing_method == BalancingMethod.NONE or balancing_method == 'none':
-            return X, y
+            return X, y # retourner les données telles quelles 
         
         if hasattr(balancing_method, 'value'):
             method = balancing_method.value
@@ -270,7 +278,7 @@ class PipelineBuilder:
         return balancer.fit_resample(X, y)
     
     def _create_drop_high_missing(self):
-        """Créer un transformateur pour supprimer les colonnes avec trop de valeurs manquantes"""
+        """Create a transformer to remove columns with too many missing values."""
         threshold = self.config.high_missing_threshold
         
         def drop_high_missing(X: pd.DataFrame) -> pd.DataFrame:
@@ -285,15 +293,15 @@ class PipelineBuilder:
         return FunctionTransformer(drop_high_missing)
     
     def build_detection_pipeline(self) -> Pipeline:
-        """Construire un pipeline de détection"""
-        return make_pipeline(*self.detectors)
+        """Build a detection pipeline"""
+        return make_pipeline(*self.detectors) # c'est une fonction de sklearn qui crée un pipeline plus facilement que la classe Pipeline()
     
     def get_step_names(self) -> List[str]:
-        """Obtenir les noms des étapes du pipeline"""
+        """Get the names of the pipeline steps"""
         return self.config.get_active_steps()
     
     def get_pipeline_summary(self) -> Dict[str, Any]:
-        """Obtenir un résumé du pipeline"""
+        """Get a summary of the pipeline"""
         return {
             'steps': self.get_step_names(),
             'n_steps': len(self.get_step_names()),
@@ -301,8 +309,8 @@ class PipelineBuilder:
         }
 
 
-class SimplePipelineBuilder(PipelineBuilder):
-    """Constructeur de pipeline simplifié"""
+class SimplePipelineBuilder(PipelineBuilder): # version de PipelineBuiled : configurations pretes à l'emploi
+    """Simplified pipeline builder"""
     
     def __init__(self, **kwargs):
         config = PreprocessingConfig(**kwargs)
@@ -354,3 +362,7 @@ class SimplePipelineBuilder(PipelineBuilder):
             drop_duplicates=False,
             drop_high_missing=False
         )
+    
+# config.py -> PipelineBuilder -> Transformers / Cleaners / Encoders -> Pipeline sklearn -> fit() / trasnform
+# config.py est le plan du pipeline et pipelineBuilder construit réellement le pipeline à partir de ce plan
+# self : methode d'instance : l'objet (une instance de la classe), cls : méthode de classe : la classe (pas une instance)

@@ -1,4 +1,6 @@
 # preprocessing/tabular/config.py
+
+# preprocessing/tabular/config.py
 from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass, field
 from enum import Enum
@@ -110,7 +112,7 @@ class PreprocessingConfig:
     encoding_max_categories: int = 50
     encoding_min_frequency: float = 0.01
     encoding_handle_unknown: str = 'ignore'
-    encoding_sparse: bool = True  # Nouveau
+    encoding_sparse: bool = True
     
     # === Outliers ===
     outlier_method: OutlierMethod = OutlierMethod.IQR
@@ -123,7 +125,7 @@ class PreprocessingConfig:
     balancing_target: Optional[str] = None
     balancing_sampling_strategy: Optional[Dict] = None
     balancing_random_state: int = 42
-    balancing_apply_before_pipeline: bool = True  # Nouveau: appliquer avant le pipeline
+    balancing_apply_before_pipeline: bool = True
     
     # === Feature Selection ===
     feature_selection_method: FeatureSelectionMethod = FeatureSelectionMethod.NONE
@@ -142,7 +144,7 @@ class PreprocessingConfig:
     create_polynomial: bool = False
     polynomial_degree: int = 2
     polynomial_max_features: int = 50
-    polynomial_max_output_features: int = 5000  # Nouveau
+    polynomial_max_output_features: int = 5000
     create_interactions: bool = False
     create_ratios: bool = False
     ratios_max_pairs: int = 100
@@ -161,34 +163,43 @@ class PreprocessingConfig:
     random_state: int = 42
     verbose: bool = True
     
+    # ✅ Fonction utilitaire pour extraire la valeur d'un Enum ou d'une string
+    def _get_enum_value(self, value):
+        """Convertit un Enum ou une string en valeur string"""
+        if value is None:
+            return None
+        if hasattr(value, 'value'):
+            return value.value
+        return str(value)
+    
     def to_dict(self) -> Dict[str, Any]:
         """Convertir la configuration en dictionnaire"""
         return {
-            'task_type': self.task_type.value,
-            'imputation_method': self.imputation_method.value,
+            'task_type': self._get_enum_value(self.task_type),
+            'imputation_method': self._get_enum_value(self.imputation_method),
             'imputation_columns': self.imputation_columns,
             'imputation_fill_value': self.imputation_fill_value,
             'imputation_knn_neighbors': self.imputation_knn_neighbors,
-            'scaling_method': self.scaling_method.value,
+            'scaling_method': self._get_enum_value(self.scaling_method),
             'scaling_columns': self.scaling_columns,
             'scaling_with_mean': self.scaling_with_mean,
             'scaling_with_std': self.scaling_with_std,
-            'encoding_method': self.encoding_method.value,
+            'encoding_method': self._get_enum_value(self.encoding_method),
             'encoding_columns': self.encoding_columns,
             'encoding_max_categories': self.encoding_max_categories,
             'encoding_min_frequency': self.encoding_min_frequency,
             'encoding_handle_unknown': self.encoding_handle_unknown,
             'encoding_sparse': self.encoding_sparse,
-            'outlier_method': self.outlier_method.value,
+            'outlier_method': self._get_enum_value(self.outlier_method),
             'outlier_threshold': self.outlier_threshold,
-            'outlier_action': self.outlier_action.value,
+            'outlier_action': self._get_enum_value(self.outlier_action),
             'outlier_columns': self.outlier_columns,
-            'balancing_method': self.balancing_method.value,
+            'balancing_method': self._get_enum_value(self.balancing_method),
             'balancing_target': self.balancing_target,
             'balancing_sampling_strategy': self.balancing_sampling_strategy,
             'balancing_random_state': self.balancing_random_state,
             'balancing_apply_before_pipeline': self.balancing_apply_before_pipeline,
-            'feature_selection_method': self.feature_selection_method.value,
+            'feature_selection_method': self._get_enum_value(self.feature_selection_method),
             'feature_selection_threshold': self.feature_selection_threshold,
             'feature_selection_k': self.feature_selection_k,
             'feature_selection_columns': self.feature_selection_columns,
@@ -250,21 +261,30 @@ class PreprocessingConfig:
             data = json.load(f)
         return cls.from_dict(data)
     
+    # ✅ CORRIGÉ : get_active_steps() gère les strings et les Enums
     def get_active_steps(self) -> List[str]:
         """Obtenir la liste des étapes actives"""
         steps = []
         
-        if self.imputation_method != ImputationMethod.DROP:
+        # Extraire les valeurs (gère les Enums et les strings)
+        imputation = self._get_enum_value(self.imputation_method)
+        scaling = self._get_enum_value(self.scaling_method)
+        encoding = self._get_enum_value(self.encoding_method)
+        outlier = self._get_enum_value(self.outlier_method)
+        balancing = self._get_enum_value(self.balancing_method)
+        feature_selection = self._get_enum_value(self.feature_selection_method)
+        
+        if imputation != 'drop':
             steps.append('imputation')
-        if self.scaling_method != ScalingMethod.NONE:
+        if scaling != 'none':
             steps.append('scaling')
-        if self.encoding_method != EncodingMethod.NONE:
+        if encoding != 'none':
             steps.append('encoding')
-        if self.outlier_method != OutlierMethod.NONE:
+        if outlier != 'none':
             steps.append('outlier_handling')
-        if self.balancing_method != BalancingMethod.NONE and not self.balancing_apply_before_pipeline:
+        if balancing != 'none' and not self.balancing_apply_before_pipeline:
             steps.append('balancing')
-        if self.feature_selection_method != FeatureSelectionMethod.NONE:
+        if feature_selection != 'none':
             steps.append('feature_selection')
         if self.apply_log_transform or self.apply_boxcox or self.apply_yeojohnson:
             steps.append('transformation')

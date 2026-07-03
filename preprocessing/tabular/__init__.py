@@ -1,21 +1,21 @@
 # preprocessing/tabular/__init__.py
 """
-Tabular Preprocessing Module - Prétraitement des Données Tabulaire
+Tabular Preprocessing Module - Tabular Data Preprocessing
 
-Ce module fournit tous les outils nécessaires pour le prétraitement
-des données tabulaires (CSV, Excel, etc.) :
+This module provides all the necessary tools for preprocessing
+tabular data (CSV, Excel, etc.):
 
-- Détection des problèmes (valeurs manquantes, outliers, corrélations)
-- Nettoyage des données
-- Encodage des variables catégorielles
-- Normalisation/Standardisation
-- Transformations de distribution
-- Réduction de dimensionnalité
-- Rééquilibrage des classes
-- Feature Engineering
-- Construction de pipelines
+- Issue detection (missing values, outliers, correlations)
+- Data cleaning
+- Categorical variable encoding
+- Normalization/Standardization
+- Distribution transformations
+- Dimensionality reduction
+- Class balancing
+- Feature engineering
+- Construction of pipelines
 """
-
+# ce fichier est le point d'entrée principal du module de prétraitmenr tabulaire , il sert à organiser et structuere le module en regroupant tous les sous-modules , facilier les imports en permettant d'importer directement depuis ppreprocessing.tabular, exposer l'API publique du module (ce qui accessible aux utilisateurs) , fournir de la documentation 
 # ============= Configuration =============
 from .config import (
     PreprocessingConfig,
@@ -91,16 +91,13 @@ from .pipeline_builder import (
     SimplePipelineBuilder
 )
 
-# ============= Upload =============
-from .upload import CSVUploader
-
 
 # ============= Version =============
-__version__ = '1.0.0'
+__version__ = '1.0.0' # c'est la version de mon module  MAJUER.MINEUR.PATH 
 
 
 # ============= Exports =============
-__all__ = [
+__all__ = [  # liste des noms qui seront exporté quant on fait from preprocessing.tabular import *
     # Configuration
     'PreprocessingConfig',
     'ImputationMethod',
@@ -163,7 +160,7 @@ __all__ = [
 ]
 
 
-# ============= Documentation =============
+# ============= Documentation ============= # cest pour afficher les informations sur le module
 def info():
     """
     Afficher les informations sur le module.
@@ -186,69 +183,6 @@ def info():
     print("  • pipeline_builder - Construction de pipelines")
     print("  • upload          - Upload de fichiers")
     print()
-    print("📖 Documentation: https://github.com/your-repo")
+    print("📖 Documentation: tw nzidou baad github repo")
     print("=" * 60)
 
-
-# ============= Test rapide =============
-def test():
-    """
-    Test rapide du module.
-    """
-    import pandas as pd
-    import numpy as np
-    
-    print("🧪 Testing Tabular Preprocessing Module...")
-    
-    # Créer des données de test
-    np.random.seed(42)
-    df = pd.DataFrame({
-        'num1': np.random.randn(100),
-        'num2': np.random.randn(100) * 2 + 5,
-        'cat1': np.random.choice(['A', 'B', 'C'], 100),
-        'cat2': np.random.choice(['X', 'Y', 'Z', 'W'], 100),
-        'target': np.random.choice([0, 1], 100)
-    })
-    
-    # Ajouter des valeurs manquantes
-    df.loc[0:10, 'num1'] = np.nan
-    df.loc[20:25, 'cat1'] = np.nan
-    
-    print(f"✅ Données de test créées: {df.shape}")
-    
-    # Tester les détecteurs
-    from .detectors import MissingValueDetector, OutlierDetector
-    
-    missing_detector = MissingValueDetector()
-    missing_detector.fit(df)
-    print(f"✅ MissingValueDetector: {len(missing_detector.problems)} problèmes")
-    
-    outlier_detector = OutlierDetector()
-    outlier_detector.fit(df)
-    print(f"✅ OutlierDetector: {len(outlier_detector.problems)} problèmes")
-    
-    # Tester l'encodage
-    from .encoders import CategoricalEncoder
-    
-    encoder = CategoricalEncoder(method='onehot', columns=['cat1', 'cat2'])
-    encoder.fit(df)
-    df_encoded = encoder.transform(df)
-    print(f"✅ CategoricalEncoder: {df_encoded.shape}")
-    
-    # Tester le scaling
-    from .scalers import FeatureScaler
-    
-    scaler = FeatureScaler(method='standard', columns=['num1', 'num2'])
-    scaler.fit(df)
-    df_scaled = scaler.transform(df)
-    print(f"✅ FeatureScaler: {df_scaled.shape}")
-    
-    print("\n🎉 Tous les tests sont passés !")
-    print("📊 Module prêt à l'emploi.")
-    
-    return True
-
-
-# Exécuter le test si le fichier est exécuté directement
-if __name__ == "__main__":
-    test()

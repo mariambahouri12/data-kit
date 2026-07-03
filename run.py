@@ -15,28 +15,31 @@ from pathlib import Path
 
 def check_dependencies():
     """Vérifier les dépendances nécessaires"""
-    required = [
-        'streamlit',
-        'pandas',
-        'numpy',
-        'scikit-learn',
-        'matplotlib',
-        'seaborn',
-        'imbalanced-learn',
-        'scipy',
-        'openpyxl',
-        'pyarrow'
-    ]
+    # Mapping des noms de packages pip vers les noms d'import Python
+    package_map = {
+        'streamlit': 'streamlit',
+        'pandas': 'pandas',
+        'numpy': 'numpy',
+        'scikit-learn': 'sklearn',     
+        'matplotlib': 'matplotlib',
+        'seaborn': 'seaborn',
+        'imbalanced-learn': 'imblearn',  
+        'scipy': 'scipy',
+        'openpyxl': 'openpyxl',
+        'pyarrow': 'pyarrow'
+    }
     
     missing = []
-    for package in required:
+    for package, import_name in package_map.items():
         try:
-            __import__(package.replace('-', '_'))
+            __import__(import_name)
+            print(f"✅ {package} imported successfully as {import_name}")
         except ImportError:
             missing.append(package)
+            print(f"❌ {package} not found (tried importing as {import_name})")
     
     if missing:
-        print(f"❌ Missing dependencies: {', '.join(missing)}")
+        print(f"\n❌ Missing dependencies: {', '.join(missing)}")
         print("\nInstall them with:")
         print(f"pip install {' '.join(missing)}")
         return False
@@ -50,8 +53,9 @@ def launch_streamlit(app_path: str = "app.py", port: int = 8501):
         print(f"❌ File not found: {app_path}")
         return False
     
-    print(f"🚀 Launching Streamlit app: {app_path}")
+    print(f"\n🚀 Launching Streamlit app: {app_path}")
     print(f"🌐 Opening at: http://localhost:{port}")
+    print("-" * 60)
     
     # Ouvrir le navigateur
     webbrowser.open(f"http://localhost:{port}")
@@ -110,17 +114,19 @@ def main():
     print("=" * 60)
     
     # Vérifier les dépendances
-    print("🔍 Checking dependencies...")
+    print("\n🔍 Checking dependencies...")
+    print("-" * 60)
+    
     if not check_dependencies():
         print("\n❌ Please install missing dependencies and try again.")
         return 1
     
-    print("✅ All dependencies installed")
+    print("\n" + "=" * 60)
+    print("✅ All dependencies installed successfully!")
+    print("=" * 60)
     
     if args.check_only:
         return 0
-    
-    print("-" * 60)
     
     # Lancer l'application
     return 0 if launch_streamlit(args.app, args.port) else 1

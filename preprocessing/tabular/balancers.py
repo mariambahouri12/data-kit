@@ -38,8 +38,10 @@ class ClassBalancer(BasePreprocessor):
         self.encoder = None
         self.original_shape = None
         self.balanced_shape = None
+        self.target = None
     
-    def fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None):
+    # ✅ AJOUT : Méthode _fit (abstraite)
+    def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None):
         """
         Adapter le balancer.
         Note: Le fit est différent car il doit retourner les données rééquilibrées.
@@ -53,7 +55,8 @@ class ClassBalancer(BasePreprocessor):
         self.is_fitted = True
         return self
     
-    def transform(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> pd.DataFrame:
+    # ✅ AJOUT : Méthode _transform (abstraite)
+    def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
         Transformer les données.
         Note: Retourne uniquement X, y est géré séparément.
@@ -145,7 +148,7 @@ class ClassBalancer(BasePreprocessor):
             return {}
         
         return {
-            'method': self.method.value,
+            'method': self.method.value if hasattr(self.method, 'value') else str(self.method),
             'original_shape': self.original_shape,
             'balanced_shape': self.balanced_shape,
             'sampling_strategy': self.sampling_strategy,

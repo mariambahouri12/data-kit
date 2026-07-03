@@ -2,30 +2,17 @@
 """
 Preprocessing Package - AI Experimentation Platform
 
-Ce package fournit les outils de prétraitement pour données tabulaires.
+This package provides a collection of preprocessing tools for tabular data.
 """
 
 # ============= Configuration =============
-from .tabular.config import PreprocessingConfig
+from .tabular.config import PreprocessingConfig # c'est la classe centrale du module , c'est la classe qui contient toutes les configurations
 
 # ============= Version =============
-__version__ = '1.0.0'
+__version__ = '1.0.0'  # version de pachage parent 
 
 # ============= Exports principaux =============
 __all__ = [
     'PreprocessingConfig',
 ]
 
-# ============= Documentation =============
-def info():
-    """Afficher les informations sur le module."""
-    print("=" * 60)
-    print("📊 TABULAR PREPROCESSING MODULE")
-    print("=" * 60)
-    print(f"Version: {__version__}")
-    print()
-    print("📦 Importez les composants individuellement :")
-    print("  from preprocessing.tabular.encoders import CategoricalEncoder")
-    print("  from preprocessing.tabular.scalers import FeatureScaler")
-    print("  from preprocessing.tabular.cleaners import MissingValueCleaner")
-    print("=" * 60)

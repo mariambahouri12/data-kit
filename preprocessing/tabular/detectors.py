@@ -8,12 +8,12 @@ from ..base import BaseDetector
 
 
 class MissingValueDetector(BaseDetector):
-    """Détecteur de valeurs manquantes"""
+    """Missing value detector"""
     
     def __init__(self, threshold: float = 0.05, **kwargs):
         """
         Args:
-            threshold: Seuil de tolérance (défaut: 5%)
+            threshold: Tolerance threshold (default: 5%)
         """
         super().__init__(**kwargs)
         self.threshold = threshold
