@@ -11,8 +11,8 @@ from .tabular.detectors import (
     CardinalityDetector, DuplicateDetector
 )
 from .tabular.cleaners import MissingValueCleaner, OutlierCleaner, DuplicateCleaner
-from .tabular.encoders import CategoricalEncoder, OrdinalEncoderWrapper
-from .tabular.scalers import FeatureScaler, PowerTransformerWrapper
+from .tabular.encoders import CategoricalEncoder
+from .tabular.scalers import FeatureScaler
 from .tabular.transformers import (
     LogTransformer, SqrtTransformer, BoxCoxTransformer,
     YeoJohnsonTransformer, PercentileTransformer
@@ -47,11 +47,11 @@ class PreprocessingFactory:
         
         # Encodage
         'categorical_encoder': CategoricalEncoder,
-        'ordinal_encoder': OrdinalEncoderWrapper,
+
         
         # Scaling
         'feature_scaler': FeatureScaler,
-        'power_transformer': PowerTransformerWrapper,
+
         
         # Transformations
         'log_transformer': LogTransformer,

@@ -1,132 +1,102 @@
 # preprocessing/tabular/scalers.py
-import pandas as pd
+from typing import Optional, List, Dict, Any, Union
+
 import numpy as np
-from typing import Optional, List
+import pandas as pd
 from sklearn.preprocessing import (
     StandardScaler, MinMaxScaler, RobustScaler,
-    MaxAbsScaler, QuantileTransformer, PowerTransformer
+    MaxAbsScaler, QuantileTransformer, PowerTransformer,
 )
+
 from ..base import BasePreprocessor
+from ._column_utils import select_columns
 from .config import ScalingMethod
 
 
 class FeatureScaler(BasePreprocessor):
-    """Scaler flexible pour les features numériques"""
-    
+    """Scaler flexible pour les features numériques.
+
+    Supporte : standard, minmax, robust, maxabs, quantile, power (Yeo-Johnson
+    ou Box-Cox selon `power_method`).
+    """
+
     def __init__(self,
-                 method: str = 'standard',
+                 method: Union[str, ScalingMethod] = ScalingMethod.STANDARD,
                  columns: Optional[List[str]] = None,
                  with_mean: bool = True,
                  with_std: bool = True,
+                 power_method: str = "yeo-johnson",
                  **kwargs):
         """
         Args:
-            method: 'standard', 'minmax', 'robust', 'maxabs', 'quantile', 'power'
-            columns: Colonnes à scaler (None = toutes les numériques)
-            with_mean: StandardScaler - centrer
-            with_std: StandardScaler - réduire
+            method: Méthode de mise à l'échelle.
+            columns: Colonnes à scaler (None = toutes les numériques).
+            with_mean: StandardScaler - centrer.
+            with_std: StandardScaler - réduire.
+            power_method: 'yeo-johnson' (gère les valeurs négatives) ou
+                'box-cox' (valeurs strictement positives uniquement),
+                utilisé seulement si method == ScalingMethod.POWER.
         """
         super().__init__(**kwargs)
-        self.method = method
+        self.method = ScalingMethod(method) if isinstance(method, str) else method
         self.columns = columns
         self.with_mean = with_mean
         self.with_std = with_std
+        self.power_method = power_method
+
         self.scaler = None
-        self.scaler_type = None
-    
-    def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None):
-        """Adapter le scaler"""
-        # Déterminer les colonnes
-        if self.columns is None:
-            cols_to_scale = X.select_dtypes(include=[np.number]).columns.tolist()
-        else:
-            cols_to_scale = [c for c in self.columns if c in X.columns]
-        
-        self.columns_to_scale = cols_to_scale
-        
-        if not cols_to_scale:
+        self.scaler_type: Optional[str] = None
+        self.columns_to_scale: List[str] = []
+
+    _SIMPLE_SCALERS = {
+        ScalingMethod.MINMAX: MinMaxScaler,
+        ScalingMethod.ROBUST: RobustScaler,
+        ScalingMethod.MAXABS: MaxAbsScaler,
+    }
+
+    def _build_scaler(self):
+        if self.method == ScalingMethod.STANDARD:
+            return StandardScaler(with_mean=self.with_mean, with_std=self.with_std)
+        if self.method == ScalingMethod.QUANTILE:
+            return QuantileTransformer(output_distribution="normal")
+        if self.method == ScalingMethod.POWER:
+            return PowerTransformer(method=self.power_method)
+        if self.method in self._SIMPLE_SCALERS:
+            return self._SIMPLE_SCALERS[self.method]()
+        raise ValueError(f"Méthode de scaling non supportée : {self.method}")
+
+    def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> None:
+        self.columns_to_scale = select_columns(X, self.columns, dtype_include=[np.number])
+        if not self.columns_to_scale:
             return
-        
-        # Choisir le scaler
-        if self.method == 'standard':
-            self.scaler = StandardScaler(with_mean=self.with_mean, with_std=self.with_std)
-        elif self.method == 'minmax':
-            self.scaler = MinMaxScaler()
-        elif self.method == 'robust':
-            self.scaler = RobustScaler()
-        elif self.method == 'maxabs':
-            self.scaler = MaxAbsScaler()
-        elif self.method == 'quantile':
-            self.scaler = QuantileTransformer(output_distribution='normal')
-        elif self.method == 'power':
-            self.scaler = PowerTransformer(method='yeo-johnson')
-        else:
-            self.scaler = StandardScaler()
-        
-        self.scaler.fit(X[cols_to_scale])
+
+        self.scaler = self._build_scaler()
+        self.scaler.fit(X[self.columns_to_scale])
         self.scaler_type = type(self.scaler).__name__
-    
+
     def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Transformer les données"""
         X_copy = X.copy()
-        
-        if hasattr(self, 'columns_to_scale') and self.columns_to_scale:
-            # Transformer et remplacer les colonnes
-            scaled_data = self.scaler.transform(X_copy[self.columns_to_scale])
-            X_copy[self.columns_to_scale] = scaled_data
-        
+        if self.columns_to_scale:
+            X_copy[self.columns_to_scale] = self.scaler.transform(X_copy[self.columns_to_scale])
         return X_copy
-    
+
     def inverse_transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Inverser la transformation"""
+        """Inverse la transformation (non supporté par QuantileTransformer avec certaines
+        configurations ni par PowerTransformer sur des colonnes hors du domaine d'origine)."""
         X_copy = X.copy()
-        
-        if hasattr(self, 'columns_to_scale') and self.columns_to_scale:
-            inv_scaled = self.scaler.inverse_transform(X_copy[self.columns_to_scale])
-            X_copy[self.columns_to_scale] = inv_scaled
-        
+        if self.columns_to_scale:
+            X_copy[self.columns_to_scale] = self.scaler.inverse_transform(X_copy[self.columns_to_scale])
         return X_copy
-    
-    def get_scale_params(self) -> dict:
-        """Obtenir les paramètres d'échelle"""
+
+    def get_scale_params(self) -> Dict[str, Any]:
+        """Paramètres d'échelle appris. Le contenu dépend du type de scaler
+        (ex: mean_/scale_ pour StandardScaler, data_min_/data_max_ pour MinMaxScaler)."""
         if self.scaler is None:
             return {}
-        
-        if hasattr(self.scaler, 'scale_'):
-            return {
-                'mean': self.scaler.mean_.tolist() if hasattr(self.scaler, 'mean_') else None,
-                'scale': self.scaler.scale_.tolist() if hasattr(self.scaler, 'scale_') else None
-            }
-        return {}
 
+        params = {}
+        for attr in ("mean_", "scale_", "center_", "data_min_", "data_max_"):
+            if hasattr(self.scaler, attr):
+                params[attr.rstrip("_")] = getattr(self.scaler, attr).tolist()
 
-class PowerTransformerWrapper(BasePreprocessor):
-    """Wrapper pour PowerTransformer (Box-Cox, Yeo-Johnson)"""
-    
-    def __init__(self,
-                 method: str = 'yeo-johnson',
-                 columns: Optional[List[str]] = None,
-                 **kwargs):
-        super().__init__(**kwargs)
-        self.method = method
-        self.columns = columns
-        self.transformer = None
-    
-    def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None):
-        if self.columns is None:
-            cols_to_transform = X.select_dtypes(include=[np.number]).columns.tolist()
-        else:
-            cols_to_transform = [c for c in self.columns if c in X.columns]
-        
-        self.columns_to_transform = cols_to_transform
-        
-        if cols_to_transform:
-            self.transformer = PowerTransformer(method=self.method)
-            self.transformer.fit(X[cols_to_transform])
-    
-    def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        X_copy = X.copy()
-        if hasattr(self, 'columns_to_transform') and self.columns_to_transform:
-            transformed = self.transformer.transform(X_copy[self.columns_to_transform])
-            X_copy[self.columns_to_transform] = transformed
-        return X_copy
+        return params

@@ -1,4 +1,5 @@
 # preprocessing/tabular/__init__.py
+
 """
 Tabular Preprocessing Module - Tabular Data Preprocessing
 
@@ -15,7 +16,8 @@ tabular data (CSV, Excel, etc.):
 - Feature engineering
 - Construction of pipelines
 """
-# ce fichier est le point d'entrée principal du module de prétraitmenr tabulaire , il sert à organiser et structuere le module en regroupant tous les sous-modules , facilier les imports en permettant d'importer directement depuis ppreprocessing.tabular, exposer l'API publique du module (ce qui accessible aux utilisateurs) , fournir de la documentation 
+
+
 # ============= Configuration =============
 from .config import (
     PreprocessingConfig,
@@ -47,13 +49,13 @@ from .cleaners import (
 # ============= Encodage =============
 from .encoders import (
     CategoricalEncoder,
-    OrdinalEncoderWrapper
+  
 )
 
 # ============= Scaling =============
 from .scalers import (
     FeatureScaler,
-    PowerTransformerWrapper
+  
 )
 
 # ============= Transformations =============
@@ -93,11 +95,11 @@ from .pipeline_builder import (
 
 
 # ============= Version =============
-__version__ = '1.0.0' # c'est la version de mon module  MAJUER.MINEUR.PATH 
+__version__ = '1.0.0'  # Format : MAJEUR.MINEUR.PATCH
 
 
 # ============= Exports =============
-__all__ = [  # liste des noms qui seront exporté quant on fait from preprocessing.tabular import *
+__all__ = [  # Liste des noms exportés lors d'un `from preprocessing.tabular import *`
     # Configuration
     'PreprocessingConfig',
     'ImputationMethod',
@@ -107,27 +109,27 @@ __all__ = [  # liste des noms qui seront exporté quant on fait from preprocessi
     'OutlierAction',
     'BalancingMethod',
     'FeatureSelectionMethod',
-    
+
     # Détecteurs
     'MissingValueDetector',
     'OutlierDetector',
     'CorrelationDetector',
     'CardinalityDetector',
     'DuplicateDetector',
-    
+
     # Nettoyage
     'MissingValueCleaner',
     'OutlierCleaner',
     'DuplicateCleaner',
-    
+
     # Encodage
     'CategoricalEncoder',
-    'OrdinalEncoderWrapper',
-    
+ 
+
     # Scaling
     'FeatureScaler',
-    'PowerTransformerWrapper',
-    
+
+
     # Transformations
     'LogTransformer',
     'SqrtTransformer',
@@ -135,54 +137,47 @@ __all__ = [  # liste des noms qui seront exporté quant on fait from preprocessi
     'BoxCoxTransformer',
     'YeoJohnsonTransformer',
     'PercentileTransformer',
-    
+
     # Réduction
     'FeatureSelector',
     'PCAReducer',
     'LDAReducer',
-    
+
     # Rééquilibrage
     'ClassBalancer',
-    
+
     # Feature Engineering
     'PolynomialFeatureCreator',
     'InteractionFeatureCreator',
     'RatioFeatureCreator',
     'AggregationFeatureCreator',
     'DateFeatureCreator',
-    
+
     # Pipeline
     'PipelineBuilder',
     'SimplePipelineBuilder',
-    
-    # Upload
-    'CSVUploader'
 ]
 
 
-# ============= Documentation ============= # cest pour afficher les informations sur le module
-def info():
-    """
-    Afficher les informations sur le module.
-    """
+# ============= Documentation =============
+def info() -> None:
+    """Afficher les informations sur le module."""
     print("=" * 60)
     print("📊 TABULAR PREPROCESSING MODULE")
     print("=" * 60)
     print(f"Version: {__version__}")
     print()
     print("📦 Sous-modules disponibles:")
-    print("  • config          - Configuration du prétraitement")
-    print("  • detectors       - Détection des problèmes")
-    print("  • cleaners        - Nettoyage des données")
-    print("  • encoders        - Encodage des catégories")
-    print("  • scalers         - Normalisation/Standardisation")
-    print("  • transformers    - Transformations de distribution")
-    print("  • reducers        - Réduction de dimensionnalité")
-    print("  • balancers       - Rééquilibrage des classes")
+    print("  • config              - Configuration du prétraitement")
+    print("  • detectors           - Détection des problèmes")
+    print("  • cleaners            - Nettoyage des données")
+    print("  • encoders            - Encodage des catégories")
+    print("  • scalers             - Normalisation/Standardisation")
+    print("  • transformers        - Transformations de distribution")
+    print("  • reducers            - Réduction de dimensionnalité")
+    print("  • balancers           - Rééquilibrage des classes")
     print("  • feature_engineering - Création de features")
-    print("  • pipeline_builder - Construction de pipelines")
-    print("  • upload          - Upload de fichiers")
+    print("  • pipeline_builder    - Construction de pipelines")
     print()
-    print("📖 Documentation: tw nzidou baad github repo")
+    print("📖 Documentation : voir le README du dépôt GitHub")
     print("=" * 60)
-
