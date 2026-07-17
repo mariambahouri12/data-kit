@@ -6,7 +6,7 @@ import pandas as pd
 from ...base import BasePreprocessor
 from .._column_utils import select_columns
 from ..config import EncodingMethod
-from .encoders import _encoding_utils as _eu
+from . import _encoding_utils as _eu
 
 
 class CategoricalEncoder(BasePreprocessor):

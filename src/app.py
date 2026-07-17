@@ -14,15 +14,15 @@ import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from src.datakit.modules.uploads import UploadManager
-from src.datakit.modules.preprocessing.tabular.config import PreprocessingConfig, TaskType, BalancingMethod
-from src.datakit.modules.preprocessing.tabular.pipeline_builder import PipelineBuilder
-from src.datakit.modules.preprocessing.tabular.balancers import ClassBalancer
-from src.datakit.modules.preprocessing.tabular.balance_analyzer import ImbalanceAnalyzer
-from src.datakit.modules.preprocessing.utils.validators import DataValidator
-from src.datakit.modules.preprocessing.utils.visualizers import DataVisualizer
-from src.datakit.modules.preprocessing.factory import PreprocessingPresets
-from src.datakit.modules.preprocessing.utils.arrow_fix import fix_dataframe_for_arrow, safe_display_dataframe, fix_dataframe_complete
+from datakit.modules.uploads import UploadManager
+from datakit.modules.preprocessing.tabular.config import PreprocessingConfig, TaskType, BalancingMethod
+from datakit.modules.preprocessing.tabular.pipeline_builder import PipelineBuilder
+from datakit.modules.preprocessing.tabular.balancers import ClassBalancer
+from datakit.modules.preprocessing.tabular.balance_analyzer import ImbalanceAnalyzer
+from datakit.modules.preprocessing.utils.validators import DataValidator
+from datakit.modules.preprocessing.utils.visualizers import DataVisualizer
+from datakit.modules.preprocessing.factory import PreprocessingPresets
+from datakit.modules.preprocessing.utils.arrow_fix import fix_dataframe_for_arrow, safe_display_dataframe, fix_dataframe_complete
 
 TARGET_COLUMN_CANDIDATES = ("target", "y", "label", "class")
 
