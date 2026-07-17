@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 import numpy as np
-from preprocessing.tabular.transformers import (
+from src.datakit.modules.preprocessing.tabular.transformers import (
     LogTransformer,
     SqrtTransformer,
     BoxCoxTransformer,

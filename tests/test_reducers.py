@@ -2,8 +2,8 @@ import pytest
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
-from preprocessing.tabular.reducers import FeatureSelector, PCAReducer, LDAReducer
-from preprocessing.tabular.config import TaskType
+from src.datakit.modules.preprocessing.tabular.reducers import FeatureSelector, PCAReducer, LDAReducer
+from src.datakit.modules.preprocessing.tabular.config import TaskType
 
 
 class TestFeatureSelector:

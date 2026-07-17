@@ -1,7 +1,7 @@
 # tests/test_config.py
 import pytest
 
-from preprocessing.tabular.config import (
+from src.datakit.modules.preprocessing.tabular.config import (
     BalancingMethod,
     EncodingMethod,
     ImputationMethod,

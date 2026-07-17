@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from preprocessing.tabular.feature_engineering import (
+from src.datakit.modules.preprocessing.tabular.feature_engineering import (
     AggregationFeatureCreator,
     DateFeatureCreator,
     InteractionFeatureCreator,
