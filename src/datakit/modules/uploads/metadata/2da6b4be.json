@@ -1,0 +1,59 @@
+{
+  "file_id": "2da6b4be",
+  "filename": "deepseek_csv_20260618_c468c8.csv",
+  "safe_filename": "20260618_230730_deepseek_csv_20260618_c468c8_2da6b4be.csv",
+  "file_path": "uploads\\raw\\20260618_230730_deepseek_csv_20260618_c468c8_2da6b4be.csv",
+  "file_size": 208,
+  "file_size_mb": 0.0001983642578125,
+  "extension": ".csv",
+  "uploaded_at": "2026-06-18T23:07:30.181319",
+  "user_id": "streamlit_user",
+  "tags": {
+    "source": "streamlit"
+  },
+  "hash": "950a19d779226bbe2193126d174ac1c8",
+  "status": "uploaded",
+  "analysis": {
+    "shape": {
+      "rows": 30,
+      "columns": 1
+    },
+    "columns": {
+      "names": [
+        "valeurs"
+      ],
+      "dtypes": {
+        "valeurs": "float64"
+      },
+      "n_unique": {
+        "valeurs": 18
+      }
+    },
+    "missing": {
+      "total": 12,
+      "percentage": 40.0,
+      "by_column": {
+        "valeurs": 12
+      }
+    },
+    "memory_usage": {
+      "total": 0.000354766845703125,
+      "by_column": {
+        "Index": 0.000125885009765625,
+        "valeurs": 0.0002288818359375
+      }
+    },
+    "dtypes_summary": {
+      "float64": 1
+    },
+    "potential_targets": [
+      {
+        "column": "valeurs",
+        "dtype": "float64",
+        "n_unique": 18,
+        "score": 2.5,
+        "suggested_task": "classification"
+      }
+    ]
+  }
+}
