@@ -2,7 +2,7 @@
 import pandas as pd
 import pytest
 
-from src.datakit.modules.preprocessing.tabular.encoders import CategoricalEncoder
+from src.datakit.modules.preprocessing.tabular.encoders.encoders import CategoricalEncoder
 
 
 class TestCategoricalEncoder:

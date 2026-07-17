@@ -47,7 +47,7 @@ from .cleaners import (
 )
 
 # ============= Encodage =============
-from .encoders import (
+from .encoders.encoders import (
     CategoricalEncoder,
   
 )

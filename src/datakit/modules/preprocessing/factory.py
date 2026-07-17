@@ -11,7 +11,7 @@ from .tabular.detectors import (
     CardinalityDetector, DuplicateDetector
 )
 from .tabular.cleaners import MissingValueCleaner, OutlierCleaner, DuplicateCleaner
-from .tabular.encoders import CategoricalEncoder
+from .tabular.encoders.encoders import CategoricalEncoder
 from .tabular.scalers import FeatureScaler
 from .tabular.transformers import (
     LogTransformer, SqrtTransformer, BoxCoxTransformer,

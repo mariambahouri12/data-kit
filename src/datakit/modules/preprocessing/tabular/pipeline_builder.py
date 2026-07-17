@@ -31,7 +31,7 @@ from .detectors import (
     CardinalityDetector, DuplicateDetector,
 )
 from .cleaners import MissingValueCleaner, OutlierCleaner, DuplicateCleaner
-from .encoders import CategoricalEncoder
+from .encoders.encoders import CategoricalEncoder
 from .scalers import FeatureScaler
 from .transformers import LogTransformer, BoxCoxTransformer, YeoJohnsonTransformer
 from .reducers import FeatureSelector, PCAReducer, LDAReducer

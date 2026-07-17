@@ -1,3 +1,4 @@
+# tabular/balancers.py
 import warnings
 from typing import Optional, Dict, Any, Tuple, Union
 
@@ -10,7 +11,7 @@ from sklearn.preprocessing import LabelEncoder
 from ..base import BasePreprocessor
 from .config import BalancingMethod
 
-# Factory : une seule source de vérité, plus de if/elif géant ni de else fourre-tout.
+
 _SAMPLERS_WITH_RANDOM_STATE = {
     BalancingMethod.SMOTE: SMOTE,
     BalancingMethod.ADASYN: ADASYN,

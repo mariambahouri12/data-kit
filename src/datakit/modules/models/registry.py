@@ -22,7 +22,7 @@ class ModelRegistry:
     
     def _discover_models(self):
         """Auto-discover all model classes"""
-        import models as models_package
+        import src.models as models_package
         
         for module_info in pkgutil.iter_modules(models_package.__path__):
             # ✅ Skip internal modules
