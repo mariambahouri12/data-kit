@@ -1,11 +1,8 @@
 import pytest
 import pandas as pd
 import numpy as np
+from datakit.modules.preprocessing.tabular.transformers import boxcox, log, sqrt, yeojohnson
 from src.datakit.modules.preprocessing.tabular.transformers import (
-    LogTransformer,
-    SqrtTransformer,
-    BoxCoxTransformer,
-    YeoJohnsonTransformer,
     PercentileTransformer
 )
 
@@ -20,7 +17,7 @@ class TestLogTransformer:
             'negative': np.random.randn(100) - 5
         })
         
-        transformer = LogTransformer(
+        transformer = log(
             columns=['positive', 'zero', 'negative'],
             base=np.e,
             shift=1e-6
@@ -41,7 +38,7 @@ class TestLogTransformer:
             'x': np.exp(np.random.randn(100))
         })
         
-        transformer = LogTransformer(
+        transformer = log(
             columns=['x'],
             base=10
         )
@@ -69,7 +66,7 @@ class TestSqrtTransformer:
             'zero': np.zeros(100)
         })
         
-        transformer = SqrtTransformer(
+        transformer = sqrt(
             columns=['positive', 'zero']
         )
         
@@ -88,7 +85,7 @@ class TestBoxCoxTransformer:
             'positive': np.random.exponential(2, 100) + 1
         })
         
-        transformer = BoxCoxTransformer(
+        transformer = boxcox(
             columns=['positive']
         )
         
@@ -105,7 +102,7 @@ class TestBoxCoxTransformer:
             'with_zeros_shift': np.random.randn(100)
         })
         
-        transformer = BoxCoxTransformer(
+        transformer = boxcox(
             columns=['with_zeros', 'with_zeros_shift']
         )
         
@@ -124,7 +121,7 @@ class TestYeoJohnsonTransformer:
             'exponential': np.random.exponential(2, 100)
         })
         
-        transformer = YeoJohnsonTransformer(
+        transformer = yeojohnson(
             columns=['normal', 'exponential']
         )
         

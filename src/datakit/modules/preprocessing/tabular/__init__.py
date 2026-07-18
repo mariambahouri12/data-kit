@@ -60,12 +60,12 @@ from .scalers import (
 
 # ============= Transformations =============
 from .transformers import (
-    LogTransformer,
-    SqrtTransformer,
-    ReciprocalTransformer,
-    BoxCoxTransformer,
-    YeoJohnsonTransformer,
-    PercentileTransformer
+    PercentileTransformer,
+    boxcox,
+    log,
+    reciprocal,
+    sqrt,
+    yeojohnson
 )
 
 # ============= Réduction =============
@@ -131,11 +131,11 @@ __all__ = [  # Liste des noms exportés lors d'un `from preprocessing.tabular im
 
 
     # Transformations
-    'LogTransformer',
-    'SqrtTransformer',
-    'ReciprocalTransformer',
-    'BoxCoxTransformer',
-    'YeoJohnsonTransformer',
+    'log',
+    'sqrt',
+    'reciprocal',
+    'boxcox',
+    'yeojohnson',
     'PercentileTransformer',
 
     # Réduction

@@ -33,7 +33,7 @@ from .detectors import (
 from .cleaners import MissingValueCleaner, OutlierCleaner, DuplicateCleaner
 from .encoders.encoders import CategoricalEncoder
 from .scalers import FeatureScaler
-from .transformers import LogTransformer, BoxCoxTransformer, YeoJohnsonTransformer
+from .transformers import boxcox, log, yeojohnson
 from .reducers import FeatureSelector, PCAReducer, LDAReducer
 from .balancers import ClassBalancer
 from .feature_engineering import (
@@ -149,12 +149,12 @@ class PipelineBuilder:
     def _step_log_transform(self) -> Optional[PipelineStep]:
         if not self.config.apply_log_transform:
             return None
-        return ("log_transform", LogTransformer(columns=self.config.transform_columns))
+        return ("log_transform", log(columns=self.config.transform_columns))
 
     def _step_boxcox(self) -> Optional[PipelineStep]:
         if not self.config.apply_boxcox:
             return None
-        transformer = BoxCoxTransformer(
+        transformer = boxcox(
             columns=self.config.transform_columns,
             lambda_=self.config.transform_lambda,
         )
@@ -163,7 +163,7 @@ class PipelineBuilder:
     def _step_yeojohnson(self) -> Optional[PipelineStep]:
         if not self.config.apply_yeojohnson:
             return None
-        transformer = YeoJohnsonTransformer(
+        transformer = yeojohnson(
             columns=self.config.transform_columns,
             lambda_=self.config.transform_lambda,
         )

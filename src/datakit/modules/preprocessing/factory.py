@@ -14,8 +14,7 @@ from .tabular.cleaners import MissingValueCleaner, OutlierCleaner, DuplicateClea
 from .tabular.encoders.encoders import CategoricalEncoder
 from .tabular.scalers import FeatureScaler
 from .tabular.transformers import (
-    LogTransformer, SqrtTransformer, BoxCoxTransformer,
-    YeoJohnsonTransformer, PercentileTransformer
+    PercentileTransformer, boxcox, log, sqrt, yeojohnson
 )
 from .tabular.reducers import FeatureSelector, PCAReducer, LDAReducer
 from .tabular.balancers import ClassBalancer
@@ -54,10 +53,10 @@ class PreprocessingFactory:
 
         
         # Transformations
-        'log_transformer': LogTransformer,
-        'sqrt_transformer': SqrtTransformer,
-        'boxcox_transformer': BoxCoxTransformer,
-        'yeojohnson_transformer': YeoJohnsonTransformer,
+        'log_transformer': log,
+        'sqrt_transformer': sqrt,
+        'boxcox_transformer': boxcox,
+        'yeojohnson_transformer': yeojohnson,
         'percentile_transformer': PercentileTransformer,
         
         # Réduction
