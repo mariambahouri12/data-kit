@@ -2,8 +2,8 @@ import pytest
 import pandas as pd
 import numpy as np
 from sklearn.pipeline import Pipeline
-from src.datakit.modules.preprocessing.tabular.pipeline_builder import PipelineBuilder, SimplePipelineBuilder
-from src.datakit.modules.preprocessing.tabular.config import PreprocessingConfig, TaskType, ScalingMethod, EncodingMethod
+from datakit.preprocessing.tabular.pipeline_builder import PipelineBuilder, SimplePipelineBuilder
+from datakit.preprocessing.tabular.config import PreprocessingConfig, TaskType, ScalingMethod, EncodingMethod
 
 
 class TestPipelineBuilder:

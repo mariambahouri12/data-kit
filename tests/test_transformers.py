@@ -1,9 +1,12 @@
 import pytest
 import pandas as pd
 import numpy as np
-from datakit.modules.preprocessing.tabular.transformers import boxcox, log, sqrt, yeojohnson
-from src.datakit.modules.preprocessing.tabular.transformers import (
-    PercentileTransformer
+from datakit.preprocessing.tabular.transformers import yeojohnson
+from datakit.preprocessing.tabular.transformers import (
+    PercentileTransformer,
+    boxcox,
+    log,
+    sqrt
 )
 
 

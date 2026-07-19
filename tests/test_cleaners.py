@@ -2,7 +2,7 @@
 import pandas as pd
 import pytest
 
-from src.datakit.modules.preprocessing.tabular.cleaners import (
+from datakit.preprocessing.tabular.cleaners import (
     DuplicateCleaner,
     MissingValueCleaner,
     OutlierCleaner,

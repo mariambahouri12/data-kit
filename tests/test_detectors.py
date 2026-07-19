@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.datakit.modules.preprocessing.tabular.detectors import (
+from datakit.preprocessing.tabular.detectors import (
     CardinalityDetector,
     CorrelationDetector,
     DuplicateDetector,

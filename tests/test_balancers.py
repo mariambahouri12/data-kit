@@ -1,9 +1,9 @@
 # tests/test_balancers.py
 import pytest
 
-from src.datakit.modules.preprocessing.tabular.balance_analyser import ImbalanceAnalyzer
-from src.datakit.modules.preprocessing.tabular.balancers import ClassBalancer
-from src.datakit.modules.preprocessing.tabular.config import BalancingMethod
+from src.datakit.modules.preprocessing.tabular.balancers.balance_analyser import ImbalanceAnalyzer
+from datakit.preprocessing.tabular.balancers.balancers import ClassBalancer
+from datakit.preprocessing.tabular.config import BalancingMethod
 
 
 class TestClassBalancer:

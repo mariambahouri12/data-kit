@@ -2,7 +2,7 @@
 import pytest
 import pandas as pd
 import numpy as np
-from src.datakit.modules.preprocessing.tabular.scalers import FeatureScaler, PowerTransformerWrapper
+from datakit.preprocessing.tabular.transformers.scalers import FeatureScaler, PowerTransformerWrapper
 
 
 class TestFeatureScaler:
