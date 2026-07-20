@@ -3,7 +3,7 @@ import io
 
 import streamlit as st
 
-from datakit.preprocessing.utils.arrow_fix import safe_display_dataframe
+from .dataframe_display import safe_display_dataframe
 
 
 def render_processed_page() -> None:

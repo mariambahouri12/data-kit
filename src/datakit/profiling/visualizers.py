@@ -1,12 +1,11 @@
 # preprocessing/utils/visualizers.py
 import pandas as pd
 import numpy as np
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Tuple
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
-import warnings
+
 
 
 class DataVisualizer:

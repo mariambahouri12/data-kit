@@ -3,9 +3,10 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from datakit.preprocessing.utils.arrow_fix import fix_dataframe_for_arrow
-from datakit.preprocessing.utils.visualizers import DataVisualizer
-from datakit.preprocessing.orchestrator import detect_target_column
+from datakit.utils.dataframe import fix_dataframe_for_arrow
+from datakit.profiling.visualizers import DataVisualizer
+from datakit.preprocessing.utils.target_detection import detect_target_column
+
 
 
 def render_visualization_page() -> None:

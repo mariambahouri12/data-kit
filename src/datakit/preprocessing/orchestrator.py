@@ -10,33 +10,11 @@ import pandas as pd
 
 from datakit.preprocessing.tabular.config import PreprocessingConfig, BalancingMethod
 from datakit.preprocessing.tabular.pipeline_builder import PipelineBuilder
-from datakit.preprocessing.utils.arrow_fix import fix_dataframe_complete
+from datakit.utils.dataframe import fix_dataframe_complete
+from datakit.preprocessing.utils.target_detection import detect_target_column
+from datakit.preprocessing.utils.compatibility import _as_dataframe, _as_series
 
 TARGET_COLUMN_CANDIDATES = ("target", "y", "label", "class")
-
-
-def detect_target_column(df: pd.DataFrame) -> Optional[str]:
-    """Détecte une colonne cible probable par son nom (heuristique simple)."""
-    for col in df.columns:
-        if col.lower() in TARGET_COLUMN_CANDIDATES:
-            return col
-    return None
-
-
-def _as_dataframe(X, columns) -> pd.DataFrame:
-    """Garantit un pd.DataFrame, quelle que soit la version d'imblearn utilisée
-    (certaines versions retournent un ndarray brut plutôt qu'un DataFrame)."""
-    if isinstance(X, pd.DataFrame):
-        return X
-    return pd.DataFrame(X, columns=columns)
-
-
-def _as_series(y, name: str, index) -> pd.Series:
-    """Garantit un pd.Series, même si imblearn a retourné un ndarray brut."""
-    if isinstance(y, pd.Series):
-        return y
-    return pd.Series(y, name=name, index=index)
-
 
 @dataclass
 class BalancingResult:

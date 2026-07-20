@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from datakit.preprocessing.utils.validators import DataValidator
-from datakit.preprocessing.utils.arrow_fix import safe_display_dataframe
-from datakit.preprocessing.orchestrator import detect_target_column
+from datakit.validation.data_validator import DataValidator
+from .dataframe_display import safe_display_dataframe
+from datakit.preprocessing.utils.target_detection import detect_target_column
 
 
 def render_preview_page() -> None:

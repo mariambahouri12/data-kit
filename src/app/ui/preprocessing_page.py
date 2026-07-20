@@ -4,9 +4,10 @@ from typing import Any, Dict
 import streamlit as st
 
 from datakit.preprocessing.tabular.config import PreprocessingConfig
-from datakit.preprocessing.factory import PreprocessingPresets
+from datakit.preprocessing.presets import PreprocessingPresets
 from datakit.preprocessing.tabular.balancers.balance_analyzer import ImbalanceAnalyzer
-from datakit.preprocessing.orchestrator import detect_target_column, run_preprocessing
+from datakit.preprocessing.orchestrator import  run_preprocessing
+from datakit.preprocessing.utils.target_detection import detect_target_column
 
 
 def render_preprocessing_page() -> None:

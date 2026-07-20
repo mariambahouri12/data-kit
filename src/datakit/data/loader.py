@@ -1,14 +1,13 @@
 """
 Chargement des fichiers uploadés (CSV / Excel / Parquet).
 
-Centralise la logique de lecture de fichier, indépendamment de Streamlit,
-pour que l'UI n'ait plus à connaître les formats supportés.
+
 """
 from pathlib import Path
 
 import pandas as pd
 
-from datakit.preprocessing.utils.arrow_fix import fix_dataframe_complete
+from datakit.utils.dataframe import fix_dataframe_complete
 
 
 class FileLoader:
