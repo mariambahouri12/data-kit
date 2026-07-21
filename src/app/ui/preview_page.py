@@ -90,7 +90,7 @@ def _render_detection_tab(df: pd.DataFrame) -> None:
     with col2:
         st.markdown("**⚠️ Problèmes détectés**")
         try:
-            results = DataValidator(verbose=False).validate(df)
+            results = DataValidator().validate(df)
             for err in results.get("errors", [])[:5]:
                 st.warning(f"🔴 {err}")
             for warn in results.get("warnings", [])[:5]:
