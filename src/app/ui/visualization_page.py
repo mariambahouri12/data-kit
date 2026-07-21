@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from datakit.utils.dataframe import fix_dataframe_for_arrow
+
 from datakit.profiling.visualizers import DataVisualizer
 from datakit.preprocessing.utils.target_detection import detect_target_column
 
@@ -21,7 +21,6 @@ def render_visualization_page() -> None:
         st.info("ℹ️ Chargez des données pour visualiser")
         return
 
-    df = fix_dataframe_for_arrow(df)
     visualizer = DataVisualizer()
 
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Distribution", "🔍 Corrélation", "📦 Outliers", "📉 PCA"])

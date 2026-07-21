@@ -1,7 +1,7 @@
 
 import pandas as pd
 
-from datakit.utils.dataframe import fix_dataframe_for_arrow
+
 
 
 def safe_display_dataframe(df: pd.DataFrame, max_rows: int = 100) -> pd.DataFrame:
@@ -24,4 +24,4 @@ def safe_display_dataframe(df: pd.DataFrame, max_rows: int = 100) -> pd.DataFram
     if len(df) > max_rows:
         df = df.head(max_rows)
     
-    return fix_dataframe_for_arrow(df)
+    return df

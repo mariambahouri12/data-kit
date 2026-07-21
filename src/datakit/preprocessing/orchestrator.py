@@ -10,7 +10,6 @@ import pandas as pd
 
 from datakit.preprocessing.tabular.config import PreprocessingConfig, BalancingMethod
 from datakit.preprocessing.tabular.pipeline_builder import PipelineBuilder
-from datakit.utils.dataframe import fix_dataframe_complete
 from datakit.preprocessing.utils.target_detection import detect_target_column
 from datakit.preprocessing.utils.compatibility import _as_dataframe, _as_series
 
@@ -61,6 +60,6 @@ def run_preprocessing(df: pd.DataFrame, config: PreprocessingConfig) -> Preproce
 
     pipeline = builder.build_pipeline()
     df_transformed = pipeline.fit_transform(balancing_result.df)
-    df_transformed = fix_dataframe_complete(df_transformed)
+  
 
     return PreprocessingResult(df=df_transformed, balancing_message=balancing_result.message)

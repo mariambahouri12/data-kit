@@ -1,23 +1,20 @@
 """
-Chargement des fichiers uploadés (CSV / Excel / Parquet).
-
+Loading uploaded files (CSV / Excel / Parquet).
 
 """
 from pathlib import Path
 
 import pandas as pd
 
-from datakit.utils.dataframe import fix_dataframe_complete
-
 
 class FileLoader:
-    """Lit un fichier uploadé (CSV/Excel/Parquet) et renvoie un DataFrame nettoyé."""
+    """Reads an uploaded file (CSV, Excel, or Parquet) and returns a DataFrame."""
 
     def __init__(self, sep: str = ",", encoding: str = "utf-8"):
         """
         Args:
-            sep: Séparateur CSV
-            encoding: Encodage du fichier CSV
+            sep: CSV delimiter.
+            encoding: CSV file encoding.
         """
         self.sep = sep
         self.encoding = encoding
@@ -32,6 +29,6 @@ class FileLoader:
         elif extension == ".parquet":
             df = pd.read_parquet(uploaded_file)
         else:
-            raise ValueError(f"Format non supporté: {extension}")
+            raise ValueError(f"Unsupported file format: {extension}")
 
-        return fix_dataframe_complete(df)
+        return df
