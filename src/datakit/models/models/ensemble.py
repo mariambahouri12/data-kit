@@ -1,5 +1,6 @@
-# models/ensemble.py - VERSION CORRIGÉE
+# models/ensemble.py
 from .base import BaseModel
+from .registry import register_model
 from xgboost import XGBClassifier, XGBRegressor
 from lightgbm import LGBMClassifier, LGBMRegressor
 from catboost import CatBoostClassifier, CatBoostRegressor
@@ -8,7 +9,10 @@ from typing import Dict, Any
 
 
 class EnsembleModel(BaseModel):
-    """Base class for ensemble models with full parameter control"""
+    """Base class for ensemble models with full parameter control.
+    Non enregistrée (@register_model) : c'est une base abstraite dont
+    _create_model n'est pas implémentée, pas un modèle utilisable telle
+    quelle."""
     
     def get_parameter_schema(self) -> Dict[str, Any]:
         """Get parameter schema - to be overridden by subclasses"""
@@ -46,6 +50,7 @@ class EnsembleModel(BaseModel):
 
 # ============= XGBOOST =============
 
+@register_model
 class XGBoostModel(EnsembleModel):
     """XGBoost model"""
     
@@ -104,6 +109,7 @@ class XGBoostModel(EnsembleModel):
 
 # ============= LIGHTGBM =============
 
+@register_model
 class LightGBMModel(EnsembleModel):
     """LightGBM model"""
     
@@ -146,6 +152,7 @@ class LightGBMModel(EnsembleModel):
 
 # ============= CATBOOST =============
 
+@register_model
 class CatBoostModel(EnsembleModel):
     """CatBoost model"""
     
@@ -196,6 +203,7 @@ class CatBoostModel(EnsembleModel):
 
 # ============= GRADIENT BOOSTING =============
 
+@register_model
 class GradientBoostingModel(EnsembleModel):
     """Gradient Boosting model"""
     

@@ -1,3 +1,4 @@
+# ui/sidebar.py
 """Barre latérale d'information sur l'état courant des données."""
 import streamlit as st
 
@@ -9,7 +10,7 @@ def render_sidebar() -> None:
 
         if st.session_state.current_data is not None:
             df = st.session_state.current_data
-            st.markdown("### 📊 Données chargées")
+            st.markdown("### 📤 Données chargées")
             st.write(f"**Lignes:** {len(df):,}")
             st.write(f"**Colonnes:** {len(df.columns)}")
 
@@ -18,6 +19,22 @@ def render_sidebar() -> None:
                 st.markdown("### ✅ Données traitées")
                 st.write(f"**Lignes:** {len(df_processed):,}")
                 st.write(f"**Colonnes:** {len(df_processed.columns)}")
+            
+            # État du modèle entraîné
+            if st.session_state.trained_model is not None:
+                st.markdown("### 🤖 Modèle entraîné")
+                st.write(f"**Modèle:** {st.session_state.model_name}")
+                st.write(f"**Tâche:** {st.session_state.model_task}")
+                
+                if st.session_state.model_metrics:
+                    # Afficher la meilleure métrique
+                    metrics = st.session_state.model_metrics
+                    best_metric_name = max(metrics.items(), key=lambda x: x[1] if isinstance(x[1], (int, float)) and x[1] is not None else -float('inf'))
+                    # Filtrer les métriques None
+                    valid_metrics = {k: v for k, v in metrics.items() if v is not None and isinstance(v, (int, float))}
+                    if valid_metrics:
+                        best_metric_name = max(valid_metrics.items(), key=lambda x: x[1])
+                        st.write(f"**{best_metric_name[0]}:** {best_metric_name[1]:.3f}")
 
         st.markdown("---")
         st.markdown("### ℹ️ Info")

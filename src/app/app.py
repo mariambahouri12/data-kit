@@ -28,6 +28,7 @@ from ui.preview_page import render_preview_page
 from ui.preprocessing_page import render_preprocessing_page
 from ui.processed_page import render_processed_page
 from ui.visualization_page import render_visualization_page
+from ui.models_page import render_models_page
 
 
 def configure_page() -> None:
@@ -46,8 +47,8 @@ def render_header() -> None:
 
 
 def render_main_tabs() -> None:
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(
-        ["📤 Upload", "🔍 Preview", "⚙️ Preprocess", "📊 Processed", "📈 Visualize"]
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+        ["📤 Upload", "🔍 Preview", "⚙️ Preprocess", "📊 Processed", "📈 Visualize", "🤖 Models"]
     )
     with tab1:
         render_upload_page()
@@ -59,6 +60,8 @@ def render_main_tabs() -> None:
         render_processed_page()
     with tab5:
         render_visualization_page()
+    with tab6:
+        render_models_page()
 
 
 def main() -> None:

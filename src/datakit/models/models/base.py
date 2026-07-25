@@ -10,8 +10,8 @@ from datetime import datetime
 import uuid
 import json
 import warnings
-import joblib  # ✅ AJOUTÉ
-import os      # ✅ AJOUTÉ
+import joblib
+import os
 
 
 class BaseModel(ABC):
@@ -30,8 +30,8 @@ class BaseModel(ABC):
         self.training_history = []
         self.best_params = {}
         self.best_score = -float('inf')
-        self.cv_results = None  # ✅ AJOUTÉ
-        self.experiment_data = {}  # ✅ AJOUTÉ
+        self.cv_results = None
+        self.experiment_data = {}
         
         # Validate parameters
         self._validate_params(self.params)
@@ -78,7 +78,7 @@ class BaseModel(ABC):
             param_def = schema[param_name]
             
             # Skip validation if value is None
-            if param_value is None:  # ✅ AJOUTÉ
+            if param_value is None:
                 continue
             
             # Type validation
@@ -266,7 +266,7 @@ class BaseModel(ABC):
             try:
                 all_metrics['f1_macro'] = f1_score(y_true, y_pred, average='macro')
                 all_metrics['f1_weighted'] = f1_score(y_true, y_pred, average='weighted')
-            except:
+            except Exception:
                 pass
                 
         else:  # regression

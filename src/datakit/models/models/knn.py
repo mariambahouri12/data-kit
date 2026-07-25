@@ -5,9 +5,11 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
-from .base import BaseModel  # ✅ AJOUTÉ
+from .base import BaseModel
+from .registry import register_model
 
 
+@register_model
 class KNNModel(BaseModel):
     """KNN with sklearn pipeline"""
     

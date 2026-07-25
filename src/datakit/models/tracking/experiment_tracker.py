@@ -1,4 +1,4 @@
-# models/experiment_tracker.py
+# tracking/experiment_tracker.py
 from typing import Dict, Any, Optional, List
 import json
 import sqlite3
@@ -6,6 +6,13 @@ import pandas as pd
 from datetime import datetime
 import os
 import uuid
+
+# Colonnes autorisées comme clés de filtre dans get_experiments(). Les noms de
+# colonnes ne peuvent pas être paramétrés en SQL (seules les valeurs le
+# peuvent) : on restreint donc `filters` à cette liste blanche pour éviter
+# toute injection via une clé de dict non prévue.
+_FILTERABLE_COLUMNS = {"run_id", "model_name", "task", "status"}
+
 
 class ExperimentTracker:
     """
@@ -214,16 +221,22 @@ class ExperimentTracker:
             LEFT JOIN parameters p ON r.run_id = p.run_id
         """
         
+        query_params: List[Any] = []
         if filters:
             where_clauses = []
             for key, value in filters.items():
-                where_clauses.append(f"r.{key} = '{value}'")
+                if key not in _FILTERABLE_COLUMNS:
+                    raise ValueError(
+                        f"Filtre non autorisé: '{key}'. Colonnes valides: {sorted(_FILTERABLE_COLUMNS)}"
+                    )
+                where_clauses.append(f"r.{key} = ?")
+                query_params.append(value)
             query += " WHERE " + " AND ".join(where_clauses)
         
         query += " GROUP BY r.run_id ORDER BY r.start_time DESC"
         
         conn = sqlite3.connect(self.db_path)
-        df = pd.read_sql_query(query, conn)
+        df = pd.read_sql_query(query, conn, params=query_params)
         conn.close()
         
         return df

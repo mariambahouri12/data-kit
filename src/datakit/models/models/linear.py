@@ -3,8 +3,10 @@ from typing import Dict, Any
 from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge, Lasso, ElasticNet
 
 from .base import BaseModel
+from .registry import register_model
 
 
+@register_model
 class LinearModel(BaseModel):
     """Linear model with full parameter control"""
     
@@ -54,6 +56,7 @@ class LinearModel(BaseModel):
             return LinearRegression(**params)
 
 
+@register_model
 class RidgeModel(LinearModel):
     """Ridge regression with L2 regularization"""
     
@@ -75,6 +78,7 @@ class RidgeModel(LinearModel):
         return Ridge(**params)
 
 
+@register_model
 class LassoModel(LinearModel):
     """Lasso regression with L1 regularization"""
     
@@ -96,6 +100,7 @@ class LassoModel(LinearModel):
         return Lasso(max_iter=10000, **params)
 
 
+@register_model
 class ElasticNetModel(LinearModel):
     """ElasticNet with L1 + L2 regularization"""
     
