@@ -12,8 +12,6 @@ from ..config import OutlierMethod
 class OutlierDetector(BaseDetector):
     """Détecte la proportion de valeurs aberrantes par colonne numérique."""
 
-    HIGH_SEVERITY_THRESHOLD_PCT = 10.0
-
     def __init__(self, method: Union[str, OutlierMethod] = OutlierMethod.IQR,
                  threshold: float = 1.5, **kwargs):
         """
@@ -40,16 +38,13 @@ class OutlierDetector(BaseDetector):
             if n_outliers is None:
                 continue
 
-            outlier_pct = (n_outliers / len(X)) * 100
+            outlier_pct = (n_outliers / len(col_data)) * 100
             self.outlier_stats[col] = {"n_outliers": n_outliers, "percentage": outlier_pct}
 
             if n_outliers > 0:
-                severity = "high" if outlier_pct > self.HIGH_SEVERITY_THRESHOLD_PCT else "medium"
                 self.problems.append({
                     "column": col,
                     "description": f"{n_outliers} outliers ({outlier_pct:.1f}%)",
-                    "severity": severity,
-                    "suggestion": self._suggest_treatment(),
                 })
 
     def _count_outliers(self, full_column: pd.Series, non_null_data: pd.Series) -> Optional[int]:
@@ -68,11 +63,6 @@ class OutlierDetector(BaseDetector):
             return int((z_scores > self.threshold).sum())
 
         raise ValueError(f"Méthode de détection d'outliers non supportée : {self.method}")
-
-    def _suggest_treatment(self) -> str:
-        if self.method == OutlierMethod.IQR:
-            return "Winsoriser ou capper les outliers"
-        return "Z-score: supprimer ou transformer"
 
     def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
         return X

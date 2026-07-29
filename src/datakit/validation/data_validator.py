@@ -57,11 +57,10 @@ class DataValidator:
             "is_valid": True,
             "detectors": {},
             "problems": [],
+            "problems_by_column": {},
             "summary": {
                 "total_problems": 0,
-                "high_severity": 0,
-                "medium_severity": 0,
-                "low_severity": 0,
+                "columns_with_issues": 0,
             },
         }
 
@@ -88,24 +87,14 @@ class DataValidator:
                 results["problems"].extend(
                     problems
                 )
-
-
-                # Update severity counters
+                
+                # Group problems by column
                 for problem in problems:
-
-                    severity = problem.get(
-                        "severity",
-                        "low"
-                    )
-
-                    if severity == "high":
-                        results["summary"]["high_severity"] += 1
-
-                    elif severity == "medium":
-                        results["summary"]["medium_severity"] += 1
-
-                    else:
-                        results["summary"]["low_severity"] += 1
+                    column = problem.get("column")
+                    if column:
+                        if column not in results["problems_by_column"]:
+                            results["problems_by_column"][column] = []
+                        results["problems_by_column"][column].append(problem)
 
 
             except Exception as error:
@@ -120,7 +109,6 @@ class DataValidator:
                     {
                         "detector": detector_name,
                         "description": str(error),
-                        "severity": "high",
                     }
                 )
 
@@ -129,6 +117,9 @@ class DataValidator:
         results["summary"]["total_problems"] = len(
             results["problems"]
         )
+        
+        # Count columns with issues
+        results["summary"]["columns_with_issues"] = len(results["problems_by_column"].keys())
 
 
         if results["summary"]["total_problems"] > 0:

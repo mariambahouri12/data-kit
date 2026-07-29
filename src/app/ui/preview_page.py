@@ -9,6 +9,7 @@ from datakit.preprocessing.utils.target_detection import detect_target_column
 
 
 def render_preview_page() -> None:
+    """Rendre la page de prévisualisation des données."""
     st.markdown('<p class="sub-header">🔍 Data Preview</p>', unsafe_allow_html=True)
 
     if st.session_state.current_data is None:
@@ -30,6 +31,7 @@ def render_preview_page() -> None:
 
 
 def _render_metrics(df: pd.DataFrame) -> None:
+    """Afficher les métriques principales du DataFrame."""
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.metric("📊 Lignes", f"{len(df):,}")
@@ -46,6 +48,7 @@ def _render_metrics(df: pd.DataFrame) -> None:
 
 
 def _render_overview_tab(df: pd.DataFrame) -> None:
+    """Afficher l'aperçu des données."""
     st.dataframe(safe_display_dataframe(df), width="stretch", height=400)
     col1, col2 = st.columns(2)
     with col1:
@@ -57,6 +60,7 @@ def _render_overview_tab(df: pd.DataFrame) -> None:
 
 
 def _render_stats_tab(df: pd.DataFrame) -> None:
+    """Afficher les statistiques descriptives."""
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     if len(numeric_cols) == 0:
         st.info("Aucune colonne numérique pour les statistiques")
@@ -65,6 +69,7 @@ def _render_stats_tab(df: pd.DataFrame) -> None:
 
 
 def _render_types_tab(df: pd.DataFrame) -> None:
+    """Afficher les types de données."""
     st.bar_chart(df.dtypes.value_counts())
     df_info = pd.DataFrame({
         "Colonne": df.columns,
@@ -77,6 +82,9 @@ def _render_types_tab(df: pd.DataFrame) -> None:
 
 
 def _render_detection_tab(df: pd.DataFrame) -> None:
+    """
+    Afficher les détections de problèmes par colonne.
+    """
     col1, col2 = st.columns(2)
 
     with col1:
@@ -89,13 +97,61 @@ def _render_detection_tab(df: pd.DataFrame) -> None:
 
     with col2:
         st.markdown("**⚠️ Problèmes détectés**")
+        
         try:
+            # Exécuter la validation
             results = DataValidator().validate(df)
-            for err in results.get("errors", [])[:5]:
-                st.warning(f"🔴 {err}")
-            for warn in results.get("warnings", [])[:5]:
-                st.warning(f"🟡 {warn}")
-            if not results.get("errors") and not results.get("warnings"):
-                st.success("✅ Aucun problème majeur détecté")
+            
+            # Récupérer les statistiques
+            total_problems = results.get("summary", {}).get("total_problems", 0)
+            
+            if total_problems > 0:
+                st.warning(f"🔴 **{total_problems}** problème(s) détecté(s)")
+                
+                st.divider()
+                
+                # Afficher les problèmes par colonne
+                st.markdown("**📝 Description des problèmes :**")
+                
+                problems_by_col = results.get("problems_by_column", {})
+                
+                if problems_by_col:
+                    # Sélecteur de colonne pour filtrer les problèmes
+                    selected_col = st.selectbox(
+                        "Filtrer par colonne :",
+                        ["Toutes les colonnes"] + list(problems_by_col.keys())
+                    )
+                    
+                    # Afficher les problèmes
+                    all_problems = []
+                    for col, problems in problems_by_col.items():
+                        if selected_col == "Toutes les colonnes" or selected_col == col:
+                            for problem in problems:
+                                all_problems.append({
+                                    "Colonne": col,
+                                    "Description": problem.get("description", ""),
+                                })
+                    
+                    if all_problems:
+                        problems_df = pd.DataFrame(all_problems)
+                        st.dataframe(
+                            problems_df,
+                            width="stretch",
+                            use_container_width=True,
+                            height=400,
+                            column_config={
+                                "Colonne": st.column_config.TextColumn("Colonne"),
+                                "Description": st.column_config.TextColumn("Description"),
+                            }
+                        )
+                    else:
+                        st.info("Aucun problème détaillé à afficher")
+                else:
+                    st.info("Aucun problème spécifique détecté par colonne")
+            else:
+                st.success("✅ **Aucun problème détecté**")
+                st.info("Toutes les colonnes semblent avoir une bonne qualité de données")
+                
         except Exception as e:
-            st.error(f"Erreur de validation: {e}")
+            st.error(f"❌ Erreur lors de la validation : {str(e)}")
+            st.exception(e)

@@ -12,8 +12,6 @@ class MissingValueDetector(BaseDetector):
     Detects columns with problematic missing values.
     """
 
-    HIGH_SEVERITY_THRESHOLD_PCT = 20.0
-
     def __init__(
         self,
         threshold: float = 0.05,
@@ -55,18 +53,11 @@ class MissingValueDetector(BaseDetector):
 
             if missing_pct > self.threshold * 100:
 
-                severity = (
-                    "high"
-                    if missing_pct > self.HIGH_SEVERITY_THRESHOLD_PCT
-                    else "medium"
-                )
-
                 self.problems.append(
                     {
                         "column": col,
                         "description":
                             f"{missing_pct:.1f}% missing values",
-                        "severity": severity
                     }
                 )
 
