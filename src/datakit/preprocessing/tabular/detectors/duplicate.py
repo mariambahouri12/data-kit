@@ -9,20 +9,17 @@ from ...base import BaseDetector
 
 class DuplicateDetector(BaseDetector):
 
-    """Détecte les lignes dupliquées."""
+    """Detect duplicate lines."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.duplicate_count = 0
 
     def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> None:
-        self.problems = []
+
         self.duplicate_count = int(X.duplicated().sum())
 
         if self.duplicate_count > 0:
             self.problems.append({
-                "description": f"{self.duplicate_count} lignes dupliquées",
+                "description": f"{self.duplicate_count} duplicate lines",
             })
-
-    def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        return X

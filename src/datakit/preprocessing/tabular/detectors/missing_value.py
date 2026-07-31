@@ -9,9 +9,8 @@ from ...base import BaseDetector
 
 class MissingValueDetector(BaseDetector):
     """
-    Detects columns with problematic missing values.
+    Detects columns with missing values.
     """
-
     def __init__(
         self,
         threshold: float = 0.05,
@@ -22,14 +21,11 @@ class MissingValueDetector(BaseDetector):
         self.threshold = threshold
         self.missing_stats: Dict[str, Any] = {}
 
-
     def _fit(
         self,
         X: pd.DataFrame,
         y: Optional[pd.Series] = None
     ) -> None:
-
-        self.problems = []
 
         self.missing_stats = {
             "total_missing": int(X.isnull().sum().sum()),
@@ -61,10 +57,3 @@ class MissingValueDetector(BaseDetector):
                     }
                 )
 
-
-    def _transform(
-        self,
-        X: pd.DataFrame
-    ) -> pd.DataFrame:
-
-        return X

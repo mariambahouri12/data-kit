@@ -10,14 +10,14 @@ from ..config import OutlierMethod
 
 
 class OutlierDetector(BaseDetector):
-    """Détecte la proportion de valeurs aberrantes par colonne numérique."""
+    """Detect the proportion of outliers per numeric column."""
 
     def __init__(self, method: Union[str, OutlierMethod] = OutlierMethod.IQR,
                  threshold: float = 1.5, **kwargs):
         """
         Args:
             method: IQR ou ZSCORE.
-            threshold: Seuil (1.5 typique pour IQR, 3 pour z-score).
+            threshold: 1.5 typical for IQR, 3 for z-score.
         """
         super().__init__(**kwargs)
         self.method = OutlierMethod(method) if isinstance(method, str) else method
@@ -25,8 +25,7 @@ class OutlierDetector(BaseDetector):
         self.outlier_stats: Dict[str, Dict[str, float]] = {}
 
     def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> None:
-        self.problems = []
-        self.outlier_stats = {}
+
         numeric_cols = X.select_dtypes(include=[np.number]).columns
 
         for col in numeric_cols:
@@ -48,7 +47,7 @@ class OutlierDetector(BaseDetector):
                 })
 
     def _count_outliers(self, full_column: pd.Series, non_null_data: pd.Series) -> Optional[int]:
-        """Retourne le nombre d'outliers, ou None si le calcul n'est pas possible (ex: std=0)."""
+        """Returns the number of outliers, or None if the calculation isn't possible (e.g., std=0)."""
         if self.method == OutlierMethod.IQR:
             q1, q3 = non_null_data.quantile(0.25), non_null_data.quantile(0.75)
             iqr = q3 - q1
@@ -62,7 +61,6 @@ class OutlierDetector(BaseDetector):
             z_scores = np.abs((full_column - mean) / std)
             return int((z_scores > self.threshold).sum())
 
-        raise ValueError(f"Méthode de détection d'outliers non supportée : {self.method}")
+        raise ValueError(f"Outlier detection method not supported: {self.method}")
 
-    def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        return X
+ 

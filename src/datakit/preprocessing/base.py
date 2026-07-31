@@ -8,7 +8,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 
 
 class BasePreprocessor(ABC, BaseEstimator, TransformerMixin):
-    """Classe de base pour tous les prétraitements, compatible sklearn Pipeline."""
+    """Base class for all preprocessing, compatible with sklearn Pipeline."""
 
     def __init__(self, name: Optional[str] = None, **kwargs):
         self.name = name or self.__class__.__name__
@@ -19,7 +19,7 @@ class BasePreprocessor(ABC, BaseEstimator, TransformerMixin):
         self._validate_params()
 
     def _validate_params(self) -> None:
-        """À override si validation nécessaire."""
+        """To override if validation needed."""
         return None
 
     def fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> "BasePreprocessor":
@@ -37,11 +37,11 @@ class BasePreprocessor(ABC, BaseEstimator, TransformerMixin):
 
     @abstractmethod
     def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> None:
-        """Implémentation de l'adaptation."""
+        """Implementation of the adaptation."""
 
     @abstractmethod
     def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Implémentation de la transformation."""
+        """Implementation of the transformation."""
 
     def get_params(self, deep: bool = True) -> Dict[str, Any]:
         return self.params.copy()
@@ -66,7 +66,7 @@ class BasePreprocessor(ABC, BaseEstimator, TransformerMixin):
 
 
 class BaseDetector(BasePreprocessor):
-    """Détecteur : identifie des problèmes sans modifier les données."""
+    """Detector: identifies issues without changing the data."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -83,14 +83,7 @@ class BaseDetector(BasePreprocessor):
             "summary": self._generate_summary(),
         }
 
-    _SEVERITY_EMOJI = {"high": "🔴", "medium": "🟡"}
 
     def _generate_summary(self) -> str:
         if not self.problems:
-            return "✅ Aucun problème détecté"
-
-        lines = [f"⚠️ {len(self.problems)} problème(s) détecté(s):"]
-        for problem in self.problems:
-            emoji = self._SEVERITY_EMOJI.get(problem.get("severity", "info"), "🟢")
-            lines.append(f"  {emoji} {problem.get('description', '')}")
-        return "\n".join(lines)
+            return "✅ No problem detected"

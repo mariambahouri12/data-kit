@@ -11,20 +11,18 @@ from ...base import BaseDetector
 
 class CorrelationDetector(BaseDetector):
 
-    """Détecte les paires de colonnes numériques fortement corrélées."""
+    """Detect pairs of highly correlated numeric columns."""
 
     def __init__(self, threshold: float = 0.8, **kwargs):
         """
         Args:
-            threshold: Seuil de corrélation absolue (défaut : 0.8).
+            threshold: Absolute correlation threshold (default: 0.8).
         """
         super().__init__(**kwargs)
         self.threshold = threshold
         self.correlations: Dict[str, Any] = {}
 
     def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> None:
-        self.problems = []
-        self.correlations = {}
 
         numeric_cols = X.select_dtypes(include=[np.number]).columns
         if len(numeric_cols) < 2:
@@ -43,7 +41,7 @@ class CorrelationDetector(BaseDetector):
         for pair in high_corr_pairs:
             self.problems.append({
                 "description": (
-                    f"Corrélation élevée entre {pair['col1']} et {pair['col2']}: "
+                    f"High correlation between {pair['col1']} and {pair['col2']}: "
                     f"{pair['correlation']:.2f}"
                 ),
             })
@@ -57,6 +55,4 @@ class CorrelationDetector(BaseDetector):
                     pairs.append({"col1": columns[i], "col2": columns[j], "correlation": corr_value})
         return pairs
 
-    def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        return X
 

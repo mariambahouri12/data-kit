@@ -9,20 +9,18 @@ from ...base import BaseDetector
 
 class CardinalityDetector(BaseDetector):
 
-    """Détecte les colonnes catégorielles à cardinalité trop élevée."""
+    """Detect columns with too high cardinality."""
 
     def __init__(self, max_categories: int = 50, **kwargs):
         """
         Args:
-            max_categories: Nombre maximum de catégories recommandé.
+            max_categories: Maximum recommended number of categories.
         """
         super().__init__(**kwargs)
         self.max_categories = max_categories
         self.cardinality_stats: Dict[str, int] = {}
 
     def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> None:
-        self.problems = []
-        self.cardinality_stats = {}
 
         categorical_cols = X.select_dtypes(include=["object", "category"]).columns
         for col in categorical_cols:
@@ -32,8 +30,6 @@ class CardinalityDetector(BaseDetector):
             if n_unique > self.max_categories:
                 self.problems.append({
                     "column": col,
-                    "description": f"{n_unique} catégories (recommandé: < {self.max_categories})",
+                    "description": f"{n_unique} categories (recommanded: < {self.max_categories})",
                 })
 
-    def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        return X

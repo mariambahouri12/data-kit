@@ -6,7 +6,7 @@ import streamlit as st
 from datakit.preprocessing.tabular.config import PreprocessingConfig
 from datakit.preprocessing.presets import PreprocessingPresets
 from datakit.preprocessing.tabular.balancers.balance_analyzer import ImbalanceAnalyzer
-from datakit.preprocessing.orchestrator import  run_preprocessing
+from datakit.preprocessing.orchestrator import run_preprocessing
 from datakit.preprocessing.utils.target_detection import detect_target_column
 
 
@@ -111,7 +111,7 @@ def _tab_cleaning(settings: Dict[str, Any]) -> None:
     with col1:
         st.markdown("**Valeurs manquantes**")
         settings["imputation_method"] = st.selectbox(
-            "Méthode d'imputation",
+            "Méthode d'imputation par défaut",
             options=["mean", "median", "most_frequent", "knn", "drop"],
             index=1, key="imputation_method",
         )
@@ -142,6 +142,54 @@ def _tab_cleaning(settings: Dict[str, Any]) -> None:
         settings["high_missing_threshold"] = st.slider(
             "Seuil de suppression (%)", min_value=0.0, max_value=1.0, value=0.8, key="high_missing_threshold"
         )
+
+    # --- NOUVEAU: Stratégies par colonne (avancé) ---
+    st.markdown("---")
+    st.markdown("**🎯 Stratégies d'imputation par colonne (avancé)**")
+    
+    use_column_strategies = st.checkbox(
+        "Définir des stratégies spécifiques par colonne",
+        value=False,
+        key="use_column_strategies"
+    )
+    
+    if use_column_strategies:
+        df = st.session_state.current_data
+        if df is not None:
+            numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
+            
+            if numeric_cols:
+                st.info(f"Configurez une stratégie pour chaque colonne numérique. Les colonnes non spécifiées utiliseront la stratégie par défaut.")
+                
+                column_strategies = {}
+                
+                # Utiliser des colonnes pour un affichage compact
+                for i, col in enumerate(numeric_cols):
+                    cols = st.columns([0.3, 0.7])
+                    with cols[0]:
+                        st.caption(f"`{col}`")
+                    with cols[1]:
+                        strategy = st.selectbox(
+                            f"Stratégie pour {col}",
+                            options=["default", "mean", "median", "most_frequent", "constant", "knn", "drop"],
+                            index=0,
+                            key=f"col_strategy_{col}",
+                            label_visibility="collapsed"
+                        )
+                        if strategy != "default":
+                            column_strategies[col] = strategy
+                
+                if column_strategies:
+                    settings["column_strategies"] = column_strategies
+                    
+                    # Afficher un résumé des stratégies définies
+                    st.markdown("**Résumé des stratégies personnalisées :**")
+                    for col, strat in column_strategies.items():
+                        st.caption(f"- `{col}` → **{strat}**")
+                else:
+                    st.caption("Aucune stratégie personnalisée définie. La stratégie par défaut sera utilisée.")
+            else:
+                st.info("Aucune colonne numérique détectée pour les stratégies personnalisées.")
 
 
 def _tab_scaling_encoding(settings: Dict[str, Any]) -> None:
