@@ -47,7 +47,7 @@ class MissingValueDetector(BaseDetector):
                 "missing_percentage": missing_pct
             }
 
-            if missing_pct > self.threshold * 100:
+            if missing_pct >= self.threshold * 100 :
 
                 self.problems.append(
                     {
