@@ -1,15 +1,16 @@
-# datakit/ai_assistant/rag/retriever.py
-
 """
 Retriever module.
 
 Responsible for finding relevant knowledge
 documents for a user query.
+
+Supports:
+- Global retrieval
+- Filtered retrieval using Document Router
 """
 
 import numpy as np
-from typing import List, Dict, Any
-
+from typing import List, Dict, Any, Optional
 
 class Retriever:
     """
@@ -29,34 +30,60 @@ class Retriever:
     def retrieve(
         self,
         query: str,
+        selected_files: Optional[List[str]] = None,
         top_k: int = 3
     ) -> List[Dict[str, Any]]:
         """
         Retrieve relevant documents.
 
         Args:
-            query: User question
-            top_k: Number of documents to retrieve
+            query:
+                User question
+
+            selected_files:
+                Files selected by DocumentRouter.
+                Example:
+                [
+                    "metrics.md",
+                    "validation.md"
+                ]
+
+            top_k:
+                Number of documents to retrieve
 
         Returns:
             List of relevant documents with metadata
         """
+
         if not self._is_initialized:
-            return self._fallback_retrieval(query)
+            # Return empty list instead of fake content
+            return []
 
         try:
-            query_embedding = self.embedding_model.encode([query])
-            query_embedding = np.array(query_embedding).astype("float32")
+            # Create query embedding
+            query_embedding = (
+                self.embedding_model
+                .encode([query])
+            )
 
-            documents = self.vector_store.search(
-                query_embedding,
-                top_k
+            query_embedding = np.array(
+                query_embedding
+            ).astype("float32")
+
+            # Search with optional file filtering
+            documents = (
+                self.vector_store.search(
+                    query_embedding,
+                    top_k,
+                    selected_files
+                )
             )
 
             return documents
 
         except Exception as e:
-            return self._fallback_retrieval(query, error=str(e))
+            # Return empty list on error
+            return []
 
     def _fallback_retrieval(
         self,
@@ -64,26 +91,54 @@ class Retriever:
         error: str = None
     ) -> List[Dict[str, Any]]:
         """
-        Fallback when vector store is not available.
-        Returns documents with default content.
+        Fallback when vector store
+        is not available.
         """
-        return [{
-            "content": f"Knowledge base not ready. Error: {error}",
-            "source": "fallback"
-        }]
 
-    def initialize(self, documents: List[str]) -> None:
+        # Return empty list - prompt_manager will handle it
+        return []
+
+    def initialize(
+        self,
+        documents: List[Dict[str, Any]]
+    ) -> None:
         """
         Initialize retriever with documents.
+
+        Args:
+            documents: List of document dictionaries
+            with 'content', 'source', 'category' fields
         """
+
         if not documents:
             return
 
         try:
-            embeddings = self.embedding_model.encode(documents)
-            self.vector_store.create(embeddings, documents)
+            # Extract text content for embeddings
+            texts = [
+                doc.get("content", "")
+                for doc in documents
+            ]
+
+            # Generate embeddings
+            embeddings = (
+                self.embedding_model
+                .encode(texts)
+            )
+
+            # Create vector index with metadata
+            self.vector_store.create(
+                embeddings,
+                documents
+            )
+
+            # Save index
             self.vector_store.save()
+
             self._is_initialized = True
+
         except Exception as e:
-            print(f"Failed to initialize retriever: {e}")
+            print(
+                f"Failed to initialize retriever: {e}"
+            )
             self._is_initialized = False

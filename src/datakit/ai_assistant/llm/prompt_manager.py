@@ -1,5 +1,3 @@
-# datakit/ai_assistant/llm/prompt_manager.py
-
 """
 Prompt construction module for DataKit AI Assistant.
 """
@@ -18,29 +16,36 @@ Your role:
 - Explain preprocessing choices
 - Recommend ML practices
 - Provide justified suggestions
-"""
+
+Provide a concise explanation.
+Do not reveal internal chain of thought.
+Give a brief justification."""
 
     DATASET_TEMPLATE = """
 DATASET CONTEXT:
-----------------
+
+---
 {dataset_context}
 """
 
     KNOWLEDGE_TEMPLATE = """
-KNOWLEDGE BASE:
----------------
+
+## KNOWLEDGE BASE:
+
 {knowledge}
 """
 
     QUESTION_TEMPLATE = """
-USER QUESTION:
---------------
+
+## USER QUESTION:
+
 {question}
 
 Answer requirements:
-- Explain your reasoning
+- Provide a concise explanation
 - Mention advantages and limitations
 - Give practical recommendation
+- Keep responses clear and focused
 """
 
     def __init__(self, assistant_name: str = "DataKit AI"):
@@ -54,14 +59,14 @@ Answer requirements:
         retrieved_documents: Optional[list] = None
     ) -> str:
         """Build final prompt sent to LLM."""
-        
+
         prompt_parts = [self._system_prompt]
-        
+
         if dataset_context:
             prompt_parts.append(
                 self.DATASET_TEMPLATE.format(dataset_context=dataset_context)
             )
-        
+
         if retrieved_documents:
             knowledge_text = "\n\n".join([
                 doc.get('content', str(doc)) if isinstance(doc, dict) else str(doc)
@@ -70,11 +75,11 @@ Answer requirements:
             prompt_parts.append(
                 self.KNOWLEDGE_TEMPLATE.format(knowledge=knowledge_text)
             )
-        
+
         prompt_parts.append(
             self.QUESTION_TEMPLATE.format(question=user_question)
         )
-        
+
         return "\n".join(prompt_parts)
 
     def build_system_prompt(self) -> str:

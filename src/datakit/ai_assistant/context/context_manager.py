@@ -1,5 +1,4 @@
 # datakit/ai_assistant/context/context_manager.py
-
 """
 Context manager for DataKit AI Assistant.
 """
@@ -10,7 +9,6 @@ from typing import Optional, Dict, Any
 import pandas as pd
 
 logger = logging.getLogger(__name__)
-
 
 class ContextManager:
     """Manages dataset and preprocessing context for the AI assistant."""
@@ -27,7 +25,7 @@ class ContextManager:
         dataset_name: str = "dataset"
     ) -> None:
         """Generate and store dataset context."""
-        if dataframe is None:
+        if dataframe is None or dataframe.empty:
             self.dataset_context = None
             logger.info("Dataset context cleared")
             return
@@ -57,7 +55,7 @@ class ContextManager:
         """Return complete AI context."""
         return {
             "dataset": self.dataset_context,
-            "preprocessing": self.preprocessing_context.get_context()  # ← CORRECTION
+            "preprocessing": self.preprocessing_context.get_context()
         }
 
     def to_prompt_format(self) -> str:
@@ -106,7 +104,7 @@ class ContextManager:
                 top_vals = ", ".join([f"{k}: {v}" for k, v in col['top_values'].items()])
                 lines.append(f"- **Valeurs fréquentes:** {top_vals}")
         
-        # Preprocessing history - CORRECTION
+        # Preprocessing history
         preprocessing = self.preprocessing_context.get_context()
         if preprocessing and preprocessing.get('operations'):
             lines.append("")

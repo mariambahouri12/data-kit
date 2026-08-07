@@ -1,19 +1,12 @@
-# app.py
 """
 Point d'entrée de l'application Streamlit.
-
-Ce fichier ne fait plus qu'orchestrer : la configuration de page, le CSS,
-l'état de session et chaque section fonctionnelle sont délégués à des
-modules dédiés (ui/, services/, state.py).
 """
+
 import os
 import sys
 
 import streamlit as st
 
-# Ce fichier vit dans src/app/. Deux dossiers doivent être sur sys.path :
-# - src/app/  (ce dossier)  -> pour les imports plats "state", "services.xxx", "ui.xxx"
-# - src/      (le parent)   -> pour que "datakit" (voisin de app/) soit importable
 _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PARENT_DIR = os.path.dirname(_CURRENT_DIR)
 for _p in (_CURRENT_DIR, _PARENT_DIR):
@@ -29,12 +22,14 @@ from ui.preprocessing_page import render_preprocessing_page
 from ui.processed_page import render_processed_page
 from ui.visualization_page import render_visualization_page
 from ui.models_page import render_models_page
-from ui.llm_assistant_page import render_llm_assistant_page  # ← NOUVEAU
+
+# Plus d'import llm_assistant_page
+from ui.chatbot import render_floating_chatbot
 
 
 def configure_page() -> None:
     st.set_page_config(
-        page_title="AI Experimentation Platform - Data Preprocessing",
+        page_title="AI Experimentation Platform",
         page_icon="📊",
         layout="wide",
         initial_sidebar_state="expanded",
@@ -48,8 +43,9 @@ def render_header() -> None:
 
 
 def render_main_tabs() -> None:
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(  # ← AJOUT tab7
-        ["📤 Upload", "🔍 Preview", "⚙️ Preprocess", "📊 Processed", "📈 Visualize", "🤖 Models", "💬 Assistant"]
+    # Plus d'onglet Assistant
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+        ["📤 Upload", "🔍 Preview", "⚙️ Preprocess", "📊 Processed", "📈 Visualize", "🤖 Models"]
     )
     with tab1:
         render_upload_page()
@@ -63,8 +59,6 @@ def render_main_tabs() -> None:
         render_visualization_page()
     with tab6:
         render_models_page()
-    with tab7:  # ← NOUVEAU
-        render_llm_assistant_page()
 
 
 def main() -> None:
@@ -74,6 +68,9 @@ def main() -> None:
     render_sidebar()
     render_header()
     render_main_tabs()
+    
+    # Chatbot flottant sur toutes les pages
+    render_floating_chatbot()
 
 
 if __name__ == "__main__":

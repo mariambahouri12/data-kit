@@ -1,16 +1,17 @@
-# datakit/ai_assistant/rag/vector_store.py
-
 """
 FAISS vector storage module.
+
+Supports:
+- Semantic similarity search
+- Metadata filtering for Agentic RAG
 """
 
 import os
 import pickle
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 import faiss
 import numpy as np
-
 
 class VectorStore:
     """
@@ -21,81 +22,229 @@ class VectorStore:
         self,
         index_path: str = "storage/rag_index/index.faiss",
         metadata_path: str = "storage/rag_index/metadata.pkl",
-        dimension: int = 384  # all-MiniLM-L6-v2 dimension
+        dimension: int = 384
     ):
         self.index_path = index_path
         self.metadata_path = metadata_path
         self.dimension = dimension
+
         self.index = None
         self.metadata: List[Dict[str, Any]] = []
+
+    @property
+    def exists(self) -> bool:
+        """
+        Check if FAISS index exists on disk.
+        """
+        return os.path.exists(self.index_path)
 
     def create(
         self,
         embeddings: np.ndarray,
-        documents: List[str]
+        documents: List[Any]
     ) -> None:
-        """Create FAISS index from embeddings."""
-        self.dimension = embeddings.shape[1]
-        self.index = faiss.IndexFlatIP(self.dimension)
-        self.index.add(embeddings.astype("float32"))
-        
-        # Store document metadata
-        self.metadata = [
-            {"content": doc, "id": i}
-            for i, doc in enumerate(documents)
-        ]
+        """
+        Create FAISS index.
 
-    def save(self) -> None:
-        """Save index and metadata to disk."""
-        os.makedirs(
-            os.path.dirname(self.index_path),
-            exist_ok=True
+        Documents can be:
+        - strings
+        - dictionaries with metadata
+        """
+
+        self.dimension = embeddings.shape[1]
+
+        self.index = faiss.IndexFlatIP(
+            self.dimension
         )
 
-        if self.index is not None:
-            faiss.write_index(self.index, self.index_path)
+        self.index.add(
+            embeddings.astype("float32")
+        )
 
-        with open(self.metadata_path, "wb") as file:
-            pickle.dump(self.metadata, file)
+        self.metadata = []
+
+        for i, doc in enumerate(documents):
+            if isinstance(doc, dict):
+                # Use the metadata from the document
+                metadata = {
+                    "content": doc.get("content", ""),
+                    "source": doc.get("source", "unknown"),
+                    "category": doc.get("category", "unknown"),
+                    "id": i
+                }
+            else:
+                metadata = {
+                    "content": doc,
+                    "source": "unknown",
+                    "category": "unknown",
+                    "id": i
+                }
+
+            self.metadata.append(metadata)
+
+    def save(self) -> None:
+        """
+        Save FAISS index and metadata.
+        """
+
+        directory = os.path.dirname(
+            self.index_path
+        )
+
+        if directory:
+            os.makedirs(
+                directory,
+                exist_ok=True
+            )
+
+        if self.index is not None:
+            faiss.write_index(
+                self.index,
+                self.index_path
+            )
+
+        with open(
+            self.metadata_path,
+            "wb"
+        ) as file:
+            pickle.dump(
+                self.metadata,
+                file
+            )
 
     def load(self) -> bool:
-        """Load index and metadata from disk."""
-        try:
-            if os.path.exists(self.index_path):
-                self.index = faiss.read_index(self.index_path)
-                self.dimension = self.index.d
+        """
+        Load FAISS index and metadata.
+        """
 
-                with open(self.metadata_path, "rb") as file:
-                    self.metadata = pickle.load(file)
+        try:
+            if self.exists:
+                self.index = (
+                    faiss.read_index(
+                        self.index_path
+                    )
+                )
+
+                self.dimension = (
+                    self.index.d
+                )
+
+                with open(
+                    self.metadata_path,
+                    "rb"
+                ) as file:
+                    self.metadata = (
+                        pickle.load(file)
+                    )
+
                 return True
+
         except Exception as e:
-            print(f"Failed to load vector store: {e}")
+            print(
+                f"Failed to load vector store: {e}"
+            )
 
         return False
 
     def search(
         self,
         query_embedding: np.ndarray,
-        top_k: int = 3
+        top_k: int = 3,
+        selected_files: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
-        """Retrieve nearest documents."""
+        """
+        Retrieve nearest documents.
+
+        Args:
+            query_embedding:
+                Query vector
+
+            top_k:
+                Number of results
+
+            selected_files:
+                Files selected by DocumentRouter.
+
+                Example:
+                [
+                    "metrics.md",
+                    "validation.md"
+                ]
+        """
+
         if self.index is None:
             return []
 
-        scores, indices = self.index.search(
-            query_embedding.astype("float32"),
-            top_k
+        # If filtering is required,
+        # retrieve more candidates first
+
+        search_k = top_k
+
+        if selected_files:
+            search_k = min(
+                len(self.metadata),
+                top_k * 5
+            )
+
+        scores, indices = (
+            self.index.search(
+                query_embedding.astype(
+                    "float32"
+                ),
+                search_k
+            )
         )
 
         results = []
+
         for i, idx in enumerate(indices[0]):
-            if idx < len(self.metadata):
-                result = self.metadata[idx].copy()
-                result["score"] = float(scores[0][i])
-                results.append(result)
+            if idx < 0:
+                continue
+
+            if idx >= len(
+                self.metadata
+            ):
+                continue
+
+            document = (
+                self.metadata[idx]
+                .copy()
+            )
+
+            # Metadata filtering with proper source handling
+            if selected_files:
+                # Get the source from metadata
+                source = document.get("source", "")
+                # Check if source matches any selected file
+                # Handle both full path and filename
+                source_matches = False
+                for selected_file in selected_files:
+                    if source == selected_file or source.endswith(selected_file):
+                        source_matches = True
+                        break
+                
+                if not source_matches:
+                    continue
+
+            document["score"] = float(
+                scores[0][i]
+            )
+
+            results.append(
+                document
+            )
+
+            if len(results) >= top_k:
+                break
 
         return results
 
     def is_ready(self) -> bool:
-        """Check if vector store is initialized."""
-        return self.index is not None and len(self.metadata) > 0
+        """
+        Check if vector store is initialized.
+        """
+
+        return (
+            self.index is not None
+            and len(self.metadata) > 0
+        )

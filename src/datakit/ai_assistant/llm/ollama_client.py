@@ -1,5 +1,3 @@
-# datakit/ai_assistant/llm/ollama_client.py
-
 """
 Ollama client for DataKit AI Assistant.
 Version robuste utilisant subprocess pour éviter les problèmes d'API.
@@ -10,7 +8,6 @@ import subprocess
 from typing import Dict, Any, Generator
 
 logger = logging.getLogger(__name__)
-
 
 class OllamaClient:
     """Client to interact with local Ollama LLM using subprocess."""
@@ -124,23 +121,24 @@ class OllamaClient:
     def generate_response(self, prompt: str, temperature: float = 0.2) -> str:
         """Generate response from Ollama model using subprocess."""
         if not self._available:
-            return "⚠️ The LLM model is not available. Please check that Ollama is installed and that Mistral is downloaded.."
+            return "⚠️ The LLM model is not available. Please check that Ollama is installed and that Mistral is downloaded."
 
         try:
-            # Utiliser subprocess pour appeler ollama run
-            result = subprocess.run(
-                ["ollama", "run", self.model_name, prompt],
+            # Use stdin for large prompts to avoid command line length limits
+            process = subprocess.run(
+                ["ollama", "run", self.model_name],
+                input=prompt,
                 capture_output=True,
                 text=True,
-                timeout=120  # 2 minutes max pour la réponse
+                timeout=120
             )
             
-            if result.returncode == 0:
-                return result.stdout.strip()
+            if process.returncode == 0:
+                return process.stdout.strip()
             else:
-                error_msg = result.stderr.strip() if result.stderr else "Erreur inconnue"
+                error_msg = process.stderr.strip() if process.stderr else "Unknown error"
                 logger.error(f"Ollama run failed: {error_msg}")
-                return f"❌ Erreur: {error_msg}"
+                return f"❌ Error: {error_msg}"
                 
         except subprocess.TimeoutExpired:
             return "⏱️ The model took too long to respond (120s)"
@@ -151,17 +149,22 @@ class OllamaClient:
     def stream_response(self, prompt: str) -> Generator[str, None, None]:
         """Stream LLM answer token by token."""
         if not self._available:
-            yield "⚠️The LLM model is not available."
+            yield "⚠️ The LLM model is not available."
             return
 
         try:
             process = subprocess.Popen(
-                ["ollama", "run", self.model_name, prompt],
+                ["ollama", "run", self.model_name],
+                stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1
             )
+            
+            # Send prompt via stdin
+            process.stdin.write(prompt)
+            process.stdin.close()
             
             for line in process.stdout:
                 if line.strip():
@@ -175,4 +178,4 @@ class OllamaClient:
                     
         except Exception as e:
             logger.error(f"Error streaming response: {e}")
-            yield f"❌ Erreur: {str(e)}"
+            yield f"❌ Error: {str(e)}"

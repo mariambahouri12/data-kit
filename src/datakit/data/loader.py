@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.datakit.exceptions import EmptyFileError
+from ..exceptions import EmptyFileError
 
 
 class FileLoader:
