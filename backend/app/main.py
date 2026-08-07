@@ -1,19 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Importer les routes
+# Import routers
 from api import chat_router, model_router, preprocessing_router, preview_router, upload_router
 
 app = FastAPI(
     title="AI Experimentation Platform API",
     version="1.0.0",
-    description="Backend API pour DataKit",
+    description="Backend API For DataKit",
 )
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:8501"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:8501"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

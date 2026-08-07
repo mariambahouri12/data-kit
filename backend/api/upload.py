@@ -5,9 +5,9 @@ router = APIRouter()
 upload_service = UploadService()
 
 
-@router.post("/")
+@router.post("/") 
 async def upload_file(file: UploadFile = File(...)):
-    """Uploader un fichier de données"""
+    """Upload data file"""
     try:
         result = upload_service.upload(file)
         return result
