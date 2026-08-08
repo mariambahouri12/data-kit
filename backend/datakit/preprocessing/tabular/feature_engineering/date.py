@@ -1,3 +1,4 @@
+
 import warnings
 from typing import Callable, Dict, List, Optional
 
@@ -5,13 +6,14 @@ import pandas as pd
 
 from ...base import BasePreprocessor
 
+
 class DateFeatureCreator(BasePreprocessor):
     """
-    Extrait des features (année, mois, jour...) à partir de colonnes de date.
-    Seules les colonnes datetime64, ou convertibles en datetime, sont traitées.
+    Extracts features (year, month, day...) from date columns.
+    Only datetime64 columns, or columns convertible to datetime, are processed.
     """
 
-    # Chaque builder reçoit la série datetime et retourne la série de la feature.
+    # Each builder receives the datetime series and returns the feature series.
     _FEATURE_BUILDERS: Dict[str, Callable[[pd.Series], pd.Series]] = {
         "year": lambda s: s.dt.year,
         "month": lambda s: s.dt.month,
@@ -21,16 +23,18 @@ class DateFeatureCreator(BasePreprocessor):
         "is_weekend": lambda s: (s.dt.dayofweek >= 5).astype(int),
     }
 
-    def __init__(self,
-                 date_columns: Optional[List[str]] = None,
-                 create_year: bool = True,
-                 create_month: bool = True,
-                 create_day: bool = True,
-                 create_dayofweek: bool = True,
-                 create_quarter: bool = True,
-                 create_is_weekend: bool = True,
-                 auto_detect: bool = False,
-                 **kwargs):
+    def __init__(
+        self,
+        date_columns: Optional[List[str]] = None,
+        create_year: bool = True,
+        create_month: bool = True,
+        create_day: bool = True,
+        create_dayofweek: bool = True,
+        create_quarter: bool = True,
+        create_is_weekend: bool = True,
+        auto_detect: bool = False,
+        **kwargs
+    ):
         super().__init__(**kwargs)
         self.date_columns = date_columns
         self.create_year = create_year
@@ -39,7 +43,7 @@ class DateFeatureCreator(BasePreprocessor):
         self.create_dayofweek = create_dayofweek
         self.create_quarter = create_quarter
         self.create_is_weekend = create_is_weekend
-        self.auto_detect = auto_detect  # désactivé par défaut pour éviter les faux positifs
+        self.auto_detect = auto_detect  # disabled by default to avoid false positives
 
         self.columns_to_process: List[str] = []
 
@@ -53,29 +57,57 @@ class DateFeatureCreator(BasePreprocessor):
             "quarter": self.create_quarter,
             "is_weekend": self.create_is_weekend,
         }
-        return [name for name, enabled in flags.items() if enabled]
 
-    def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> None:
+        return [
+            name
+            for name, enabled in flags.items()
+            if enabled
+        ]
+
+    def _fit(
+        self,
+        X: pd.DataFrame,
+        y: Optional[pd.Series] = None
+    ) -> None:
         if self.date_columns is not None:
-            self.columns_to_process = [c for c in self.date_columns if c in X.columns]
+            self.columns_to_process = [
+                c
+                for c in self.date_columns
+                if c in X.columns
+            ]
+
         elif self.auto_detect:
-            self.columns_to_process = X.select_dtypes(include=["datetime64"]).columns.tolist()
+            self.columns_to_process = (
+                X.select_dtypes(
+                    include=["datetime64"]
+                ).columns.tolist()
+            )
+
         else:
             self.columns_to_process = []
+
             warnings.warn(
                 "No date_columns specified and auto_detect is False. "
                 "Specify date_columns to process dates.",
                 RuntimeWarning,
             )
 
-    def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
+    def _transform(
+        self,
+        X: pd.DataFrame
+    ) -> pd.DataFrame:
         X_copy = X.copy()
         active_features = self._active_features
 
         for col in self.columns_to_process:
-            series = self._as_datetime(X_copy[col], col)
+            series = self._as_datetime(
+                X_copy[col],
+                col
+            )
+
             if series is None or series.isna().all():
                 continue
+
             X_copy[col] = series
 
             for feature_name in active_features:
@@ -85,16 +117,25 @@ class DateFeatureCreator(BasePreprocessor):
         return X_copy
 
     @staticmethod
-    def _as_datetime(series: pd.Series, col_name: str) -> Optional[pd.Series]:
-        """Convertit en datetime si nécessaire ; None si la conversion échoue totalement."""
+    def _as_datetime(
+        series: pd.Series,
+        col_name: str
+    ) -> Optional[pd.Series]:
+        """Converts to datetime if necessary; returns None if conversion fails completely."""
         if pd.api.types.is_datetime64_any_dtype(series):
             return series
 
-        converted = pd.to_datetime(series, errors="coerce")
+        converted = pd.to_datetime(
+            series,
+            errors="coerce"
+        )
+
         if converted.isna().all():
             warnings.warn(
                 f"Column '{col_name}' could not be converted to datetime; skipping.",
                 RuntimeWarning,
             )
             return None
+
         return converted
+

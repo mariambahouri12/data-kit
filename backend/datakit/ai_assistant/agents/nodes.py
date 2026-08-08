@@ -10,122 +10,71 @@ from typing import Dict, Any
 # Router Agent
 # =====================================================
 
-def router_node(
-    state,
-    router=None
-):
+def router_node(state, router=None):
     question = state.get("question", "")
 
     if router is None:
-        return {
-            "selected_files": []
-        }
+        return {"selected_files": []}
 
     try:
         files = router.route(question)
-
-        return {
-            "selected_files": files
-        }
-
+        return {"selected_files": files}
     except Exception as e:
-        return {
-            "selected_files": [],
-            "error": str(e)
-        }
+        return {"selected_files": [], "error": str(e)}
 
 # =====================================================
 # Retrieval Agent
 # =====================================================
 
-def retrieval_node(
-    state,
-    retriever
-):
+def retrieval_node(state, retriever):
+    """
+    FIX : suppression du check "Knowledge base not ready" — ce texte
+    n'est produit par aucune implémentation actuelle de Retriever.retrieve()
+    (qui renvoie [] directement si non initialisé, jamais un faux document).
+    C'était du code mort reliquat d'une ancienne version.
+    """
     question = state.get("question", "")
-
-    selected_files = (
-        state.get(
-            "selected_files",
-            None
-        )
-    )
+    selected_files = state.get("selected_files", None)
 
     try:
         documents = retriever.retrieve(
             query=question,
             selected_files=selected_files
         )
-
-        # If documents is a list with a fake message, don't use it
-        if documents and len(documents) == 1:
-            content = documents[0].get("content", "")
-            if "Knowledge base not ready" in content:
-                return {
-                    "documents": []
-                }
-
-        return {
-            "documents": documents
-        }
-
+        return {"documents": documents}
     except Exception as e:
-        return {
-            "documents": [],
-            "error": str(e)
-        }
+        return {"documents": [], "error": str(e)}
 
 # =====================================================
 # Context Agent
 # =====================================================
 
-def context_node(
-    state,
-    context_manager=None
-):
+def context_node(state, context_manager=None):
     if context_manager is None:
-        return {
-            "dataset_context": ""
-        }
+        return {"dataset_context": ""}
 
     try:
-        # Use to_markdown_context which handles empty dataset internally
         context = context_manager.to_markdown_context()
-        return {
-            "dataset_context": context
-        }
-
+        return {"dataset_context": context}
     except Exception as e:
-        return {
-            "dataset_context": "",
-            "error": str(e)
-        }
+        return {"dataset_context": "", "error": str(e)}
 
 # =====================================================
 # Prompt Construction Agent
 # =====================================================
 
-def prompt_node(
-    state,
-    prompt_manager
-):
-    # Get retry count to adjust prompt quality
+def prompt_node(state, prompt_manager):
     retry_count = state.get("retry_count", 0)
-    
-    # Base prompt
-    prompt = (
-        prompt_manager
-        .build_prompt(
-            user_question=state.get("question", ""),
-            dataset_context=state.get("dataset_context", ""),
-            retrieved_documents=state.get("documents", [])
-        )
+
+    prompt = prompt_manager.build_prompt(
+        user_question=state.get("question", ""),
+        dataset_context=state.get("dataset_context", ""),
+        retrieved_documents=state.get("documents", [])
     )
-    
-    # Add quality improvement instructions on retry
+
     if retry_count > 0:
         prompt += """
-        
+
 IMPORTANT - Improve your answer quality:
 - Provide a more detailed and complete explanation
 - Include specific examples or steps
@@ -133,46 +82,47 @@ IMPORTANT - Improve your answer quality:
 - Add practical recommendations
 - Be thorough and comprehensive
 """
-    
-    return {
-        "prompt": prompt
-    }
+
+    return {"prompt": prompt}
 
 # =====================================================
 # LLM Generation Agent
 # =====================================================
 
-def generation_node(
-    state,
-    llm_client
-):
+def generation_node(state, llm_client):
     try:
         prompt = state.get("prompt", "")
-        
-        answer = (
-            llm_client
-            .generate_response(prompt)
-        )
-
-        return {
-            "answer": answer,
-            "success": True
-        }
-
+        answer = llm_client.generate_response(prompt)
+        return {"answer": answer, "success": True}
     except Exception as e:
-        return {
-            "answer": f"Error: {str(e)}",
-            "success": False,
-            "error": str(e)
-        }
+        return {"answer": f"Error: {str(e)}", "success": False, "error": str(e)}
 
 # =====================================================
-# Validation Agent (avec bad_answers moins agressif)
+# Validation Agent
 # =====================================================
 
-def validation_node(
-    state
-):
+# FIX (#8) : OllamaClient catche ses propres exceptions et encode les
+# erreurs directement dans le texte de la réponse ("❌ Error: ...",
+# "⚠️ The LLM model is not available..."). generation_node reçoit donc
+# toujours success=True dans ces cas. On détecte maintenant ces motifs
+# ici pour déclencher un retry au lieu de renvoyer l'erreur brute à
+# l'utilisateur comme si c'était une réponse valide.
+_ERROR_MARKERS = (
+    "❌ error",
+    "⚠️ the llm model is not available",
+    "⏱️ the model took too long to respond",
+)
+
+_UNHELPFUL_PHRASES = (
+    "i don't know",
+    "i cannot answer",
+    "i am unable to answer",
+    "no answer available",
+    "i don't have enough information",
+)
+
+
+def validation_node(state):
     """
     Validate the generated answer BEFORE formatting.
     Returns:
@@ -182,15 +132,6 @@ def validation_node(
     """
     answer = state.get("answer", "")
     success = state.get("success", False)
-    
-    # Only reject answers that are explicitly unhelpful
-    bad_answers = [
-        "i don't know",
-        "i cannot answer",
-        "i am unable to answer",
-        "no answer available",
-        "i don't have enough information"
-    ]
 
     if not success:
         retry_count = state.get("retry_count", 0) + 1
@@ -209,9 +150,17 @@ def validation_node(
             "retry_count": retry_count
         }
 
-    # Check for explicit unhelpful responses only
     answer_lower = answer.lower().strip()
-    if any(bad in answer_lower for bad in bad_answers):
+
+    if any(marker in answer_lower for marker in _ERROR_MARKERS):
+        retry_count = state.get("retry_count", 0) + 1
+        return {
+            "success": False,
+            "error": "LLM backend error detected",
+            "retry_count": retry_count
+        }
+
+    if any(phrase in answer_lower for phrase in _UNHELPFUL_PHRASES):
         retry_count = state.get("retry_count", 0) + 1
         return {
             "success": False,
@@ -219,7 +168,4 @@ def validation_node(
             "retry_count": retry_count
         }
 
-    # Validation passes
-    return {
-        "success": True
-    }
+    return {"success": True}

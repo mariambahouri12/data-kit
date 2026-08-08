@@ -1,6 +1,7 @@
 # preprocessing/tabular/config.py
+
 from typing import Dict, Any, List, Optional, Type
-from dataclasses import dataclass, fields, asdict
+from dataclasses import dataclass, field, fields, asdict
 from enum import Enum
 import json
 
@@ -124,8 +125,13 @@ class PreprocessingConfig:
     outlier_columns: Optional[List[str]] = None
 
     # === Balancing ===
+    # FIX (dead code éliminé) : `balancing_target` a été retiré. Ce champ
+    # n'était jamais lu ni par ClassBalancer, ni par pipeline_builder, ni
+    # par orchestrator — la colonne cible est toujours résolue via
+    # detect_target_column(). Le garder aurait laissé croire à un
+    # utilisateur de l'API qu'il pouvait forcer la target du balancing,
+    # alors que ce n'était le cas nulle part dans le code.
     balancing_method: BalancingMethod = BalancingMethod.NONE
-    balancing_target: Optional[str] = None
     balancing_sampling_strategy: Optional[Dict] = None
     balancing_random_state: int = 42
     balancing_apply_before_pipeline: bool = True
@@ -166,6 +172,18 @@ class PreprocessingConfig:
     random_state: int = 42
     verbose: bool = True
 
+    # -- Normalisation ----------------------------------------------------
+
+    def __post_init__(self) -> None:
+        """Normalise les champs enum : accepte une string ou un Enum en entrée,
+        garantit un Enum en sortie. Élimine le besoin, partout ailleurs dans le
+        code, de tester hasattr(x, 'value') avant de lire une méthode de config.
+        """
+        for field_name, enum_cls in _ENUM_FIELDS.items():
+            value = getattr(self, field_name)
+            if isinstance(value, str):
+                setattr(self, field_name, enum_cls(value))
+
     # -- Sérialisation --------------------------------------------------
 
     def to_dict(self) -> Dict[str, Any]:
@@ -201,16 +219,6 @@ class PreprocessingConfig:
         with open(filepath, 'r') as f:
             data = json.load(f)
         return cls.from_dict(data)
-    # À ajouter dans preprocessing/tabular/config.py, dans PreprocessingConfig
-
-    def __post_init__(self) -> None:
-        """Normalise les champs enum : accepte une string ou un Enum en entrée,
-          garantit un Enum en sortie. Élimine le besoin, partout ailleurs dans le
-          code, de tester hasattr(x, 'value') avant de lire une méthode de config."""
-        for field_name, enum_cls in _ENUM_FIELDS.items():
-            value = getattr(self, field_name)
-            if isinstance(value, str):
-               setattr(self, field_name, enum_cls(value))
 
     # -- Introspection ----------------------------------------------------
 

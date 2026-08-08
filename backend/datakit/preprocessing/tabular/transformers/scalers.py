@@ -1,4 +1,6 @@
-# preprocessing/tabular/scalers.py
+
+# preprocessing/tabular/transformers/scalers.py
+
 from typing import Optional, List, Dict, Any, Union
 
 import numpy as np
@@ -14,28 +16,30 @@ from ..config import ScalingMethod
 
 
 class FeatureScaler(BasePreprocessor):
-    """Scaler flexible pour les features numériques.
+    """Flexible scaler for numerical features.
 
-    Supporte : standard, minmax, robust, maxabs, quantile, power (Yeo-Johnson
-    ou Box-Cox selon `power_method`).
+    Supports: standard, minmax, robust, maxabs, quantile, power
+    (Yeo-Johnson or Box-Cox depending on `power_method`).
     """
 
-    def __init__(self,
-                 method: Union[str, ScalingMethod] = ScalingMethod.STANDARD,
-                 columns: Optional[List[str]] = None,
-                 with_mean: bool = True,
-                 with_std: bool = True,
-                 power_method: str = "yeo-johnson",
-                 **kwargs):
+    def __init__(
+        self,
+        method: Union[str, ScalingMethod] = ScalingMethod.STANDARD,
+        columns: Optional[List[str]] = None,
+        with_mean: bool = True,
+        with_std: bool = True,
+        power_method: str = "yeo-johnson",
+        **kwargs
+    ):
         """
         Args:
-            method: Méthode de mise à l'échelle.
-            columns: Colonnes à scaler (None = toutes les numériques).
-            with_mean: StandardScaler - centrer.
-            with_std: StandardScaler - réduire.
-            power_method: 'yeo-johnson' (gère les valeurs négatives) ou
-                'box-cox' (valeurs strictement positives uniquement),
-                utilisé seulement si method == ScalingMethod.POWER.
+            method: Scaling method.
+            columns: Columns to scale (None = all numerical columns).
+            with_mean: StandardScaler - center the data.
+            with_std: StandardScaler - scale the data.
+            power_method: 'yeo-johnson' (supports negative values) or
+                'box-cox' (strictly positive values only),
+                used only if method == ScalingMethod.POWER.
         """
         super().__init__(**kwargs)
         self.method = ScalingMethod(method) if isinstance(method, str) else method
@@ -56,17 +60,35 @@ class FeatureScaler(BasePreprocessor):
 
     def _build_scaler(self):
         if self.method == ScalingMethod.STANDARD:
-            return StandardScaler(with_mean=self.with_mean, with_std=self.with_std)
+            return StandardScaler(
+                with_mean=self.with_mean,
+                with_std=self.with_std
+            )
+
         if self.method == ScalingMethod.QUANTILE:
             return QuantileTransformer(output_distribution="normal")
+
         if self.method == ScalingMethod.POWER:
             return PowerTransformer(method=self.power_method)
+
         if self.method in self._SIMPLE_SCALERS:
             return self._SIMPLE_SCALERS[self.method]()
-        raise ValueError(f"Méthode de scaling non supportée : {self.method}")
 
-    def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> None:
-        self.columns_to_scale = select_columns(X, self.columns, dtype_include=[np.number])
+        raise ValueError(
+            f"Unsupported scaling method: {self.method}"
+        )
+
+    def _fit(
+        self,
+        X: pd.DataFrame,
+        y: Optional[pd.Series] = None
+    ) -> None:
+        self.columns_to_scale = select_columns(
+            X,
+            self.columns,
+            dtype_include=[np.number]
+        )
+
         if not self.columns_to_scale:
             return
 
@@ -76,27 +98,48 @@ class FeatureScaler(BasePreprocessor):
 
     def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
         X_copy = X.copy()
+
         if self.columns_to_scale:
-            X_copy[self.columns_to_scale] = self.scaler.transform(X_copy[self.columns_to_scale])
+            X_copy[self.columns_to_scale] = self.scaler.transform(
+                X_copy[self.columns_to_scale]
+            )
+
         return X_copy
 
     def inverse_transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Inverse la transformation (non supporté par QuantileTransformer avec certaines
-        configurations ni par PowerTransformer sur des colonnes hors du domaine d'origine)."""
+        """Reverse the transformation (not supported by QuantileTransformer
+        with certain configurations, nor by PowerTransformer for columns
+        outside the original domain)."""
         X_copy = X.copy()
+
         if self.columns_to_scale:
-            X_copy[self.columns_to_scale] = self.scaler.inverse_transform(X_copy[self.columns_to_scale])
+            X_copy[self.columns_to_scale] = self.scaler.inverse_transform(
+                X_copy[self.columns_to_scale]
+            )
+
         return X_copy
 
     def get_scale_params(self) -> Dict[str, Any]:
-        """Paramètres d'échelle appris. Le contenu dépend du type de scaler
-        (ex: mean_/scale_ pour StandardScaler, data_min_/data_max_ pour MinMaxScaler)."""
+        """Return the learned scaling parameters. The content depends on
+        the scaler type (e.g., mean_/scale_ for StandardScaler,
+        data_min_/data_max_ for MinMaxScaler)."""
         if self.scaler is None:
             return {}
 
         params = {}
-        for attr in ("mean_", "scale_", "center_", "data_min_", "data_max_"):
+
+        for attr in (
+            "mean_",
+            "scale_",
+            "center_",
+            "data_min_",
+            "data_max_"
+        ):
             if hasattr(self.scaler, attr):
-                params[attr.rstrip("_")] = getattr(self.scaler, attr).tolist()
+                params[attr.rstrip("_")] = getattr(
+                    self.scaler,
+                    attr
+                ).tolist()
 
         return params
+

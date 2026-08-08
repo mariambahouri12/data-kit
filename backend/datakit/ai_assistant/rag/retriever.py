@@ -9,8 +9,12 @@ Supports:
 - Filtered retrieval using Document Router
 """
 
+import logging
 import numpy as np
 from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
+
 
 class Retriever:
     """
@@ -18,14 +22,27 @@ class Retriever:
     based on semantic similarity.
     """
 
-    def __init__(
-        self,
-        embedding_model,
-        vector_store
-    ):
+    def __init__(self, embedding_model, vector_store):
         self.embedding_model = embedding_model
         self.vector_store = vector_store
         self._is_initialized = False
+
+    @property
+    def is_ready(self) -> bool:
+        """Indique si le retriever peut servir des requêtes."""
+        return self._is_initialized
+
+    def mark_ready(self) -> None:
+        """
+        Marque le retriever comme prêt sans reconstruire l'index.
+
+        FIX (#3, encapsulation) : utilisé quand le vector store a été
+        chargé depuis le disque (cas où l'index existe déjà) plutôt que
+        reconstruit via initialize(). Remplace l'ancien
+        `retriever._is_initialized = True` fait depuis __init__.py, qui
+        contournait l'encapsulation de cet attribut privé.
+        """
+        self._is_initialized = True
 
     def retrieve(
         self,
@@ -37,108 +54,52 @@ class Retriever:
         Retrieve relevant documents.
 
         Args:
-            query:
-                User question
-
-            selected_files:
-                Files selected by DocumentRouter.
-                Example:
-                [
-                    "metrics.md",
-                    "validation.md"
-                ]
-
-            top_k:
-                Number of documents to retrieve
+            query: User question
+            selected_files: Files selected by DocumentRouter.
+                Example: ["metrics.md", "validation.md"]
+            top_k: Number of documents to retrieve
 
         Returns:
             List of relevant documents with metadata
         """
-
         if not self._is_initialized:
-            # Return empty list instead of fake content
             return []
 
         try:
-            # Create query embedding
-            query_embedding = (
-                self.embedding_model
-                .encode([query])
+            query_embedding = self.embedding_model.encode([query])
+            query_embedding = np.array(query_embedding).astype("float32")
+
+            documents = self.vector_store.search(
+                query_embedding,
+                top_k,
+                selected_files
             )
-
-            query_embedding = np.array(
-                query_embedding
-            ).astype("float32")
-
-            # Search with optional file filtering
-            documents = (
-                self.vector_store.search(
-                    query_embedding,
-                    top_k,
-                    selected_files
-                )
-            )
-
             return documents
 
-        except Exception as e:
-            # Return empty list on error
+        except Exception:
+            logger.exception("Retrieval failed")
             return []
 
-    def _fallback_retrieval(
-        self,
-        query: str,
-        error: str = None
-    ) -> List[Dict[str, Any]]:
+    def initialize(self, documents: List[Dict[str, Any]]) -> None:
         """
-        Fallback when vector store
-        is not available.
-        """
-
-        # Return empty list - prompt_manager will handle it
-        return []
-
-    def initialize(
-        self,
-        documents: List[Dict[str, Any]]
-    ) -> None:
-        """
-        Initialize retriever with documents.
+        Initialize retriever with documents (builds the index from scratch).
 
         Args:
             documents: List of document dictionaries
-            with 'content', 'source', 'category' fields
+                with 'content', 'source', 'category' fields
         """
-
         if not documents:
             return
 
         try:
-            # Extract text content for embeddings
-            texts = [
-                doc.get("content", "")
-                for doc in documents
-            ]
+            texts = [doc.get("content", "") for doc in documents]
+            embeddings = self.embedding_model.encode(texts)
 
-            # Generate embeddings
-            embeddings = (
-                self.embedding_model
-                .encode(texts)
-            )
-
-            # Create vector index with metadata
-            self.vector_store.create(
-                embeddings,
-                documents
-            )
-
-            # Save index
+            self.vector_store.create(embeddings, documents)
             self.vector_store.save()
 
             self._is_initialized = True
 
-        except Exception as e:
-            print(
-                f"Failed to initialize retriever: {e}"
-            )
+        except Exception:
+            logger.exception("Failed to initialize retriever")
             self._is_initialized = False

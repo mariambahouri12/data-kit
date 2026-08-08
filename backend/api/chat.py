@@ -6,7 +6,12 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 
+
+from services.ai_context_state import context_manager
+
+
 from services.assistant_service import AssistantService
+
 
 router = APIRouter()
 assistant_service = AssistantService()
@@ -25,7 +30,7 @@ class ChatResponse(BaseModel):
 
 @router.post("/", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    """Envoyer un message à l'assistant IA."""
+    """Send a message to the AI assistant."""
     try:
         response = assistant_service.chat(request.message)
         return ChatResponse(**response)
@@ -35,8 +40,9 @@ async def chat(request: ChatRequest):
 
 @router.get("/status")
 async def chat_status():
-    """Vérifier le statut de l'assistant."""
+    """Check the assistant status."""
     return {
         "available": assistant_service.is_available(),
-        "message": "Assistant prêt" if assistant_service.is_available() else "Assistant non disponible"
+        "message": "Assistant ready" if assistant_service.is_available() else "Assistant unavailable"
     }
+

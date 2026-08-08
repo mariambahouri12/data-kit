@@ -1,15 +1,14 @@
-import warnings
-from typing import Optional, Any, Dict, List, Union
 
-import numpy as np
+from typing import Optional, List
+
 import pandas as pd
-from sklearn.impute import SimpleImputer, KNNImputer
+
 
 from ...base import BasePreprocessor
 from ..utils._column_utils import select_columns
 
 class DuplicateCleaner(BasePreprocessor):
-    """Supprime les lignes dupliquées. Stateless : rien à apprendre au fit."""
+    """Remove duplicated rows. Stateless: nothing to learn during fit."""
 
     def __init__(self, subset: Optional[List[str]] = None, keep: str = "first", **kwargs):
         super().__init__(**kwargs)

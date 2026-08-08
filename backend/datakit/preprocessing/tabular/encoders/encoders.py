@@ -1,4 +1,6 @@
+
 # preprocessing/tabular/encoders.py
+
 from typing import Optional, List, Dict, Any, Union
 
 import pandas as pd
@@ -11,13 +13,13 @@ from . import _encoding_utils as _eu
 
 class CategoricalEncoder(BasePreprocessor):
     """
-    Encodeur flexible pour variables catégorielles.
-    Supporte : One-Hot, Label, Target, Frequency, Binary, CatBoost, Hash, Ordinal.
+    Flexible encoder for categorical variables.
+    Supports: One-Hot, Label, Target, Frequency, Binary, CatBoost, Hash, Ordinal.
 
-    Les colonnes dont le nombre de catégories dépasse `max_categories` sont
-    automatiquement basculées en frequency encoding, quelle que soit la
-    méthode choisie, pour éviter une explosion dimensionnelle (ex: one-hot
-    sur un ID à 50 000 valeurs).
+    Columns whose number of categories exceeds `max_categories` are
+    automatically switched to frequency encoding, regardless of the
+    selected method, to avoid dimensionality explosion (e.g., one-hot
+    encoding on an ID with 50,000 values).
     """
 
     _FIT_METHODS = {
@@ -31,24 +33,28 @@ class CategoricalEncoder(BasePreprocessor):
         EncodingMethod.ORDINAL: _eu.fit_ordinal,
     }
 
-    def __init__(self,
-                 method: Union[str, EncodingMethod] = EncodingMethod.ONE_HOT,
-                 columns: Optional[List[str]] = None,
-                 max_categories: int = 50,
-                 min_frequency: float = 0.01,
-                 handle_unknown: str = "ignore",
-                 sparse: bool = True,
-                 **kwargs):
+    def __init__(
+        self,
+        method: Union[str, EncodingMethod] = EncodingMethod.ONE_HOT,
+        columns: Optional[List[str]] = None,
+        max_categories: int = 50,
+        min_frequency: float = 0.01,
+        handle_unknown: str = "ignore",
+        sparse: bool = True,
+        **kwargs
+    ):
         """
         Args:
-            method: Méthode d'encodage.
-            columns: Colonnes à encoder (None = toutes les catégorielles).
-            max_categories: Nombre max de catégories avant repli en frequency encoding.
-            min_frequency: Fréquence minimum pour garder une catégorie séparée
-                (transmis à sklearn.OneHotEncoder ; les catégories plus rares
-                sont regroupées en 'infrequent').
-            handle_unknown: 'ignore' ou 'error' pour les catégories inconnues au transform.
-            sparse: Utiliser une sparse matrix pour One-Hot (économie de RAM).
+            method: Encoding method.
+            columns: Columns to encode (None = all categorical columns).
+            max_categories: Maximum number of categories before falling
+                back to frequency encoding.
+            min_frequency: Minimum frequency required to keep a category
+                separate (passed to sklearn.OneHotEncoder; rarer categories
+                are grouped as 'infrequent').
+            handle_unknown: 'ignore' or 'error' for unknown categories
+                during transform.
+            sparse: Use a sparse matrix for One-Hot encoding (RAM savings).
         """
         super().__init__(**kwargs)
         self.method = EncodingMethod(method) if isinstance(method, str) else method
@@ -62,48 +68,103 @@ class CategoricalEncoder(BasePreprocessor):
         self.mapping: Dict[str, Dict[str, Any]] = {}
         self.column_names: List[str] = []
         self.columns_to_encode: List[str] = []
-        self.fallback_columns: List[str] = []  # colonnes trop cardinales -> frequency encoding forcé
+        self.fallback_columns: List[str] = []
 
     # -- Fit -----------------------------------------------------------------
 
-    def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> None:
-        candidate_cols = select_columns(X, self.columns, dtype_include=["object", "category"])
+    def _fit(
+        self,
+        X: pd.DataFrame,
+        y: Optional[pd.Series] = None
+    ) -> None:
+        candidate_cols = select_columns(
+            X,
+            self.columns,
+            dtype_include=["object", "category"]
+        )
 
-        self.columns_to_encode, self.fallback_columns = _eu.split_by_cardinality(self, X, candidate_cols)
+        self.columns_to_encode, self.fallback_columns = (
+            _eu.split_by_cardinality(
+                self,
+                X,
+                candidate_cols
+            )
+        )
 
         if self.fallback_columns:
-            _eu.fit_frequency(self, X, self.fallback_columns)
+            _eu.fit_frequency(
+                self,
+                X,
+                self.fallback_columns
+            )
 
-        if self.method == EncodingMethod.NONE or not self.columns_to_encode:
+        if (
+            self.method == EncodingMethod.NONE
+            or not self.columns_to_encode
+        ):
             return
 
-        self._FIT_METHODS[self.method](self, X, y)
+        self._FIT_METHODS[self.method](
+            self,
+            X,
+            y
+        )
 
     # -- Transform -------------------------------------------------------------
 
-    def _transform(self, X: pd.DataFrame) -> pd.DataFrame:
+    def _transform(
+        self,
+        X: pd.DataFrame
+    ) -> pd.DataFrame:
         if self.method == EncodingMethod.ONE_HOT:
-            X_copy = _eu.transform_onehot(self, X)
-        elif self.method == EncodingMethod.ORDINAL:
-            X_copy = _eu.transform_ordinal(self, X)
-        else:
-            X_copy = _eu.transform_other(self, X)
+            X_copy = _eu.transform_onehot(
+                self,
+                X
+            )
 
-        return _eu.apply_frequency_fallback(self, X_copy)
+        elif self.method == EncodingMethod.ORDINAL:
+            X_copy = _eu.transform_ordinal(
+                self,
+                X
+            )
+
+        else:
+            X_copy = _eu.transform_other(
+                self,
+                X
+            )
+
+        return _eu.apply_frequency_fallback(
+            self,
+            X_copy
+        )
 
     # -- Introspection -----------------------------------------------------
 
     def get_feature_names(self) -> List[str]:
-        """Noms des colonnes produites après encodage."""
+        """Names of the columns produced after encoding."""
         if self.method == EncodingMethod.ONE_HOT:
-            return list(self.column_names) + list(self.fallback_columns)
+            return (
+                list(self.column_names)
+                + list(self.fallback_columns)
+            )
 
         if self.method == EncodingMethod.BINARY:
             binary_names = [
                 f"{col}_bit_{i}"
                 for col in self.columns_to_encode
-                for i in range(self.mapping[col]["n_bits"])
+                for i in range(
+                    self.mapping[col]["n_bits"]
+                )
             ]
-            return binary_names + list(self.fallback_columns)
 
-        return list(self.columns_to_encode) + list(self.fallback_columns)
+            return (
+                binary_names
+                + list(self.fallback_columns)
+            )
+
+        return (
+            list(self.columns_to_encode)
+            + list(self.fallback_columns)
+        )
+

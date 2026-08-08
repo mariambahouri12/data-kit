@@ -1,8 +1,11 @@
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any
 
+
 from services.model_service import ModelService
+
 
 router = APIRouter()
 model_service = ModelService()
@@ -18,13 +21,13 @@ class TrainRequest(BaseModel):
 
 @router.get("/available")
 async def get_available_models():
-    """Liste des modèles disponibles"""
+    """List available models."""
     return {"models": model_service.get_available_models()}
 
 
 @router.get("/params/{model_name}")
 async def get_model_params(model_name: str):
-    """Schéma des paramètres d'un modèle"""
+    """Get the parameter schema of a model."""
     try:
         return model_service.get_parameter_schema(model_name)
     except ValueError as e:
@@ -33,7 +36,7 @@ async def get_model_params(model_name: str):
 
 @router.post("/train")
 async def train_model(request: TrainRequest):
-    """Entraîner un modèle"""
+    """Train a model."""
     try:
         result = model_service.train(
             model_name=request.model_name,

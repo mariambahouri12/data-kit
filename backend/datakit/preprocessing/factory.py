@@ -1,214 +1,274 @@
+
 # preprocessing/factory.py
+
 from typing import Dict, Any, Optional, List, Type, Union
+
 import pandas as pd
 from sklearn.pipeline import Pipeline
-
-from datakit.preprocessing.tabular.transformers import PercentileTransformer
-from .tabular.transformers import boxcox, log, sqrt
 
 from .base import BasePreprocessor
 from .tabular.config import PreprocessingConfig, TaskType
 from .tabular.pipeline_builder import PipelineBuilder, SimplePipelineBuilder
 from .tabular.detectors import (
-    MissingValueDetector, OutlierDetector, CorrelationDetector,
-    CardinalityDetector, DuplicateDetector
+    MissingValueDetector,
+    OutlierDetector,
+    CorrelationDetector,
+    CardinalityDetector,
+    DuplicateDetector,
 )
-from .tabular.cleaners import MissingValueCleaner, OutlierCleaner, DuplicateCleaner
+from .tabular.cleaners import (
+    MissingValueCleaner,
+    OutlierCleaner,
+    DuplicateCleaner,
+)
 from .tabular.encoders.encoders import CategoricalEncoder
 from .tabular.transformers.scalers import FeatureScaler
 from .tabular.transformers import (
-    yeojohnson
+    LogTransformer,
+    SqrtTransformer,
+    ReciprocalTransformer,
+    BoxCoxTransformer,
+    YeoJohnsonTransformer,
+    PercentileTransformer,
 )
 from .tabular.reducers import FeatureSelector, PCAReducer, LDAReducer
 from .tabular.balancers.balancers import ClassBalancer
 from .tabular.feature_engineering import (
-    PolynomialFeatureCreator, InteractionFeatureCreator,
-    RatioFeatureCreator, AggregationFeatureCreator, DateFeatureCreator
+    PolynomialFeatureCreator,
+    InteractionFeatureCreator,
+    RatioFeatureCreator,
+    AggregationFeatureCreator,
+    DateFeatureCreator,
 )
 
 
 class PreprocessingFactory:
     """
-    Factory pour créer des préprocesseurs et pipelines.
-    Permet de créer des composants individuels ou des pipelines complets.
+    Factory for creating preprocessors and pipelines.
+
+    Supports both individual preprocessing components
+    and complete preprocessing pipelines.
     """
-    
-    # Registre des préprocesseurs disponibles
+
+    # Registry of available preprocessors
     _preprocessors = {
-        # Détecteurs
-        'missing_detector': MissingValueDetector,
-        'outlier_detector': OutlierDetector,
-        'correlation_detector': CorrelationDetector,
-        'cardinality_detector': CardinalityDetector,
-        'duplicate_detector': DuplicateDetector,
-        
-        # Nettoyage
-        'missing_cleaner': MissingValueCleaner,
-        'outlier_cleaner': OutlierCleaner,
-        'duplicate_cleaner': DuplicateCleaner,
-        
-        # Encodage
-        'categorical_encoder': CategoricalEncoder,
+        # Detectors
+        "missing_detector": MissingValueDetector,
+        "outlier_detector": OutlierDetector,
+        "correlation_detector": CorrelationDetector,
+        "cardinality_detector": CardinalityDetector,
+        "duplicate_detector": DuplicateDetector,
 
-        
+        # Cleaning
+        "missing_cleaner": MissingValueCleaner,
+        "outlier_cleaner": OutlierCleaner,
+        "duplicate_cleaner": DuplicateCleaner,
+
+        # Encoding
+        "categorical_encoder": CategoricalEncoder,
+
         # Scaling
-        'feature_scaler': FeatureScaler,
+        "feature_scaler": FeatureScaler,
 
-        
         # Transformations
-        'log_transformer': log,
-        'sqrt_transformer': sqrt,
-        'boxcox_transformer': boxcox,
-        'yeojohnson_transformer': yeojohnson,
-        'percentile_transformer': PercentileTransformer,
-        
-        # Réduction
-        'feature_selector': FeatureSelector,
-        'pca_reducer': PCAReducer,
-        'lda_reducer': LDAReducer,
-        
-        # Rééquilibrage
-        'class_balancer': ClassBalancer,
-        
-        # Feature Engineering
-        'polynomial_creator': PolynomialFeatureCreator,
-        'interaction_creator': InteractionFeatureCreator,
-        'ratio_creator': RatioFeatureCreator,
-        'aggregation_creator': AggregationFeatureCreator,
-        'date_creator': DateFeatureCreator
+        "log_transformer": LogTransformer,
+        "sqrt_transformer": SqrtTransformer,
+        "reciprocal_transformer": ReciprocalTransformer,
+        "boxcox_transformer": BoxCoxTransformer,
+        "yeojohnson_transformer": YeoJohnsonTransformer,
+        "percentile_transformer": PercentileTransformer,
+
+        # Dimensionality reduction
+        "feature_selector": FeatureSelector,
+        "pca_reducer": PCAReducer,
+        "lda_reducer": LDAReducer,
+
+        # Class balancing
+        "class_balancer": ClassBalancer,
+
+        # Feature engineering
+        "polynomial_creator": PolynomialFeatureCreator,
+        "interaction_creator": InteractionFeatureCreator,
+        "ratio_creator": RatioFeatureCreator,
+        "aggregation_creator": AggregationFeatureCreator,
+        "date_creator": DateFeatureCreator,
     }
-    
+
     @classmethod
     def create(cls, name: str, **kwargs) -> BasePreprocessor:
         """
-        Créer un préprocesseur par son nom.
-        
+        Create a preprocessor by name.
+
         Args:
-            name: Nom du préprocesseur
-            **kwargs: Paramètres du préprocesseur
-        
+            name: Name of the preprocessor.
+            **kwargs: Preprocessor parameters.
+
         Returns:
-            Instance du préprocesseur
+            An instance of the requested preprocessor.
         """
         if name not in cls._preprocessors:
-            available = ', '.join(cls._preprocessors.keys())
-            raise ValueError(f"Preprocessor '{name}' not found. Available: {available}")
-        
+            available = ", ".join(cls._preprocessors.keys())
+            raise ValueError(
+                f"Preprocessor '{name}' not found. Available: {available}"
+            )
+
         preprocessor_class = cls._preprocessors[name]
         return preprocessor_class(**kwargs)
-    
+
     @classmethod
     def list_preprocessors(cls) -> List[Dict[str, Any]]:
         """
-        Lister tous les préprocesseurs disponibles.
-        
+        List all available preprocessors.
+
         Returns:
-            Liste des préprocesseurs avec leurs informations
+            A list containing information about each preprocessor.
         """
         return [
             {
-                'name': name,
-                'class': cls.__name__,
-                'description': cls.__doc__.strip() if cls.__doc__ else ''
+                "name": name,
+                "class": preprocessor_class.__name__,
+                "description": (
+                    preprocessor_class.__doc__.strip()
+                    if preprocessor_class.__doc__
+                    else ""
+                ),
             }
-            for name, cls in cls._preprocessors.items()
+            for name, preprocessor_class in cls._preprocessors.items()
         ]
-    
+
     @classmethod
-    def create_pipeline(cls, 
-                        config: Optional[Union[Dict[str, Any], PreprocessingConfig]] = None,
-                        X: Optional[pd.DataFrame] = None,
-                        y: Optional[pd.Series] = None) -> Pipeline:
+    def create_pipeline(
+        cls,
+        config: Optional[Union[Dict[str, Any], PreprocessingConfig]] = None,
+    ) -> Pipeline:
         """
-        Créer un pipeline complet.
-        
+        Create a complete preprocessing pipeline.
+
         Args:
-            config: Configuration (dictionnaire ou PreprocessingConfig)
-            X: DataFrame pour détection automatique
-            y: Target pour Target Encoding
-        
+            config: Preprocessing configuration, either as a dictionary
+                or as a PreprocessingConfig instance.
+
         Returns:
-            Pipeline sklearn
+            An unfitted sklearn Pipeline.
+
+        Note:
+            This method previously accepted X and y parameters that were
+            never used internally. The pipeline is entirely defined by
+            `config`.
+
+            Keeping X and y in the signature would incorrectly suggest
+            that they influence pipeline construction, for example through
+            automatic column detection.
+
+            The target variable y must instead be provided when calling
+            `pipeline.fit()` or `pipeline.fit_transform()` so that
+            Target Encoding, CatBoost Encoding, and LDA can receive it.
         """
         if isinstance(config, dict):
             config = PreprocessingConfig.from_dict(config)
         elif config is None:
             config = PreprocessingConfig()
-        
+
         builder = PipelineBuilder(config)
-        return builder.build_pipeline(X, y)
-    
+        return builder.build_pipeline()
+
     @classmethod
     def create_detection_pipeline(cls) -> Pipeline:
-        """Créer un pipeline de détection"""
+        """Create a preprocessing detection pipeline."""
         builder = PipelineBuilder()
         return builder.build_detection_pipeline()
-    
+
     @classmethod
-    def create_simple_pipeline(cls, 
-                               pipeline_type: str = 'default',
-                               task_type: str = 'classification',
-                               **kwargs) -> Pipeline:
+    def create_simple_pipeline(
+        cls,
+        pipeline_type: str = "default",
+        task_type: str = "classification",
+        **kwargs,
+    ) -> Pipeline:
         """
-        Créer un pipeline simple prédéfini.
-        
+        Create a predefined simple preprocessing pipeline.
+
         Args:
-            pipeline_type: 'default', 'robust', 'high_performance', 'minimal'
-            task_type: 'classification' ou 'regression'
-            **kwargs: Paramètres supplémentaires
-        
+            pipeline_type:
+                Pipeline type: 'default', 'robust',
+                'high_performance', or 'minimal'.
+
+            task_type:
+                Task type: 'classification' or 'regression'.
+
+            **kwargs:
+                Additional preprocessing parameters.
+
         Returns:
-            Pipeline sklearn
+            A configured sklearn Pipeline.
         """
-        kwargs['task_type'] = TaskType(task_type)
-        
-        if pipeline_type == 'default':
+        kwargs["task_type"] = TaskType(task_type)
+
+        if pipeline_type == "default":
             builder = SimplePipelineBuilder.create_default(**kwargs)
-        elif pipeline_type == 'robust':
+
+        elif pipeline_type == "robust":
             builder = SimplePipelineBuilder.create_robust(**kwargs)
-        elif pipeline_type == 'high_performance':
+
+        elif pipeline_type == "high_performance":
             builder = SimplePipelineBuilder.create_high_performance(**kwargs)
-        elif pipeline_type == 'minimal':
+
+        elif pipeline_type == "minimal":
             builder = SimplePipelineBuilder.create_minimal(**kwargs)
+
         else:
-            raise ValueError(f"Unknown pipeline type: {pipeline_type}")
-        
+            raise ValueError(
+                f"Unknown pipeline type: {pipeline_type}"
+            )
+
         return builder.build_pipeline()
-    
+
     @classmethod
     def get_preprocessor_info(cls, name: str) -> Dict[str, Any]:
         """
-        Obtenir les informations d'un préprocesseur.
-        
+        Get information about a preprocessor.
+
         Args:
-            name: Nom du préprocesseur
-        
+            name: Name of the preprocessor.
+
         Returns:
-            Informations du préprocesseur
+            A dictionary containing information about the preprocessor.
         """
         if name not in cls._preprocessors:
-            raise ValueError(f"Preprocessor '{name}' not found")
-        
+            raise ValueError(
+                f"Preprocessor '{name}' not found"
+            )
+
         preprocessor_class = cls._preprocessors[name]
-        
+
         return {
-            'name': name,
-            'class': preprocessor_class.__name__,
-            'description': preprocessor_class.__doc__.strip() if preprocessor_class.__doc__ else '',
+            "name": name,
+            "class": preprocessor_class.__name__,
+            "description": (
+                preprocessor_class.__doc__.strip()
+                if preprocessor_class.__doc__
+                else ""
+            ),
         }
-    
+
     @classmethod
-    def register_preprocessor(cls, name: str, preprocessor_class: Type[BasePreprocessor]):
+    def register_preprocessor(
+        cls,
+        name: str,
+        preprocessor_class: Type[BasePreprocessor],
+    ):
         """
-        Enregistrer un nouveau préprocesseur.
-        
+        Register a new preprocessor.
+
         Args:
-            name: Nom du préprocesseur
-            preprocessor_class: Classe du préprocesseur
+            name: Name under which the preprocessor will be registered.
+            preprocessor_class: Preprocessor class to register.
         """
         if not issubclass(preprocessor_class, BasePreprocessor):
-            raise ValueError(f"{preprocessor_class.__name__} must inherit from BasePreprocessor")
-        
-        cls._preprocessors[name] = preprocessor_class
+            raise ValueError(
+                f"{preprocessor_class.__name__} "
+                "must inherit from BasePreprocessor"
+            )
 
+        cls._preprocessors[name] = preprocessor_class
 

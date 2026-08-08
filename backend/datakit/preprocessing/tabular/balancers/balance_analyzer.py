@@ -1,4 +1,5 @@
-#tabular/balance_analyser.py
+
+# tabular/balancers/balance_analyser.py
 from typing import Dict, Any
 
 import pandas as pd
@@ -8,25 +9,25 @@ from ..config import BalancingMethod
 
 class ImbalanceAnalyzer:
     """
-    Analyse la distribution des classes d'une target et suggère une méthode
-    de rééquilibrage adaptée. Outil de diagnostic pur : aucune modification
-    de données, ne nécessite pas de ClassBalancer instancié.
+    Analyzes the class distribution of a target and suggests an appropriate
+    rebalancing method. Pure diagnostic tool: does not modify data
+    and does not require an instantiated ClassBalancer.
     """
 
-    # (seuil exclusif du ratio, sévérité, [(méthode, raison), ...] par priorité)
+    # (exclusive ratio threshold, severity, [(method, reason), ...] by priority)
     _RULES = (
-        (2, "low", [(BalancingMethod.NONE, "Les classes sont déjà équilibrées")]),
+        (2, "low", [(BalancingMethod.NONE, "Classes are already balanced")]),
         (5, "medium", [
-            (BalancingMethod.RANDOM_OVER, "Déséquilibre modéré, over-sampling simple"),
-            (BalancingMethod.SMOTE, "Déséquilibre modéré, SMOTE donne de meilleurs résultats"),
+            (BalancingMethod.RANDOM_OVER, "Moderate imbalance, simple over-sampling"),
+            (BalancingMethod.SMOTE, "Moderate imbalance, SMOTE provides better results"),
         ]),
         (10, "high", [
-            (BalancingMethod.SMOTE, "Déséquilibre important, SMOTE est recommandé"),
-            (BalancingMethod.ADASYN, "Alternative à SMOTE pour les cas difficiles"),
+            (BalancingMethod.SMOTE, "Significant imbalance, SMOTE is recommended"),
+            (BalancingMethod.ADASYN, "Alternative to SMOTE for difficult cases"),
         ]),
         (float("inf"), "high", [
-            (BalancingMethod.ADASYN, "Déséquilibre sévère, ADASYN est recommandé"),
-            (BalancingMethod.SMOTE, "Alternative pour déséquilibre sévère"),
+            (BalancingMethod.ADASYN, "Severe imbalance, ADASYN is recommended"),
+            (BalancingMethod.SMOTE, "Alternative for severe imbalance"),
         ]),
     )
 
@@ -52,4 +53,9 @@ class ImbalanceAnalyzer:
                     {"method": method, "reason": reason, "priority": i + 1}
                     for i, (method, reason) in enumerate(methods)
                 ]
-                return {"imbalance_ratio": ratio, "severity": severity, "suggestions": suggestions}
+                return {
+                    "imbalance_ratio": ratio,
+                    "severity": severity,
+                    "suggestions": suggestions,
+                }
+

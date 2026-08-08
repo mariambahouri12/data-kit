@@ -1,4 +1,6 @@
+
 # _column_utils.py
+
 from typing import List, Optional
 
 import pandas as pd
@@ -10,16 +12,19 @@ def select_columns(
     dtype_include: Optional[List[str]] = None,
 ) -> List[str]:
     """
-    Résout la liste de colonnes à traiter.
+    Resolves the list of columns to process.
 
-    - Si `requested` est None : toutes les colonnes de X (filtrées par dtype si fourni).
-    - Sinon : l'intersection entre `requested` et les colonnes réellement présentes
-      dans X (silencieusement ignore celles qui manquent).
+    - If `requested` is None: all columns of X (filtered by dtype if provided).
+    - Otherwise: the intersection between `requested` and the columns actually
+      present in X (silently ignores missing columns).
     """
     if requested is None:
         candidates = X.columns
+
         if dtype_include is not None:
             candidates = X.select_dtypes(include=dtype_include).columns
+
         return candidates.tolist()
 
     return [c for c in requested if c in X.columns]
+

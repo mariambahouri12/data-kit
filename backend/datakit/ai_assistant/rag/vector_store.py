@@ -8,10 +8,14 @@ Supports:
 
 import os
 import pickle
+import logging
 from typing import List, Dict, Any, Optional
 
 import faiss
 import numpy as np
+
+logger = logging.getLogger(__name__)
+
 
 class VectorStore:
     """
@@ -33,16 +37,10 @@ class VectorStore:
 
     @property
     def exists(self) -> bool:
-        """
-        Check if FAISS index exists on disk.
-        """
+        """Check if FAISS index exists on disk."""
         return os.path.exists(self.index_path)
 
-    def create(
-        self,
-        embeddings: np.ndarray,
-        documents: List[Any]
-    ) -> None:
+    def create(self, embeddings: np.ndarray, documents: List[Any]) -> None:
         """
         Create FAISS index.
 
@@ -50,22 +48,14 @@ class VectorStore:
         - strings
         - dictionaries with metadata
         """
-
         self.dimension = embeddings.shape[1]
-
-        self.index = faiss.IndexFlatIP(
-            self.dimension
-        )
-
-        self.index.add(
-            embeddings.astype("float32")
-        )
+        self.index = faiss.IndexFlatIP(self.dimension)
+        self.index.add(embeddings.astype("float32"))
 
         self.metadata = []
 
         for i, doc in enumerate(documents):
             if isinstance(doc, dict):
-                # Use the metadata from the document
                 metadata = {
                     "content": doc.get("content", ""),
                     "source": doc.get("source", "unknown"),
@@ -83,66 +73,34 @@ class VectorStore:
             self.metadata.append(metadata)
 
     def save(self) -> None:
-        """
-        Save FAISS index and metadata.
-        """
-
-        directory = os.path.dirname(
-            self.index_path
-        )
+        """Save FAISS index and metadata."""
+        directory = os.path.dirname(self.index_path)
 
         if directory:
-            os.makedirs(
-                directory,
-                exist_ok=True
-            )
+            os.makedirs(directory, exist_ok=True)
 
         if self.index is not None:
-            faiss.write_index(
-                self.index,
-                self.index_path
-            )
+            faiss.write_index(self.index, self.index_path)
 
-        with open(
-            self.metadata_path,
-            "wb"
-        ) as file:
-            pickle.dump(
-                self.metadata,
-                file
-            )
+        with open(self.metadata_path, "wb") as file:
+            pickle.dump(self.metadata, file)
 
     def load(self) -> bool:
-        """
-        Load FAISS index and metadata.
-        """
-
+        """Load FAISS index and metadata."""
         try:
             if self.exists:
-                self.index = (
-                    faiss.read_index(
-                        self.index_path
-                    )
-                )
+                self.index = faiss.read_index(self.index_path)
+                self.dimension = self.index.d
 
-                self.dimension = (
-                    self.index.d
-                )
-
-                with open(
-                    self.metadata_path,
-                    "rb"
-                ) as file:
-                    self.metadata = (
-                        pickle.load(file)
-                    )
+                with open(self.metadata_path, "rb") as file:
+                    self.metadata = pickle.load(file)
 
                 return True
 
-        except Exception as e:
-            print(
-                f"Failed to load vector store: {e}"
-            )
+        except Exception:
+            # FIX (#6) : logging cohérent avec le reste du module,
+            # au lieu d'un print() non capturé par la config de logging.
+            logger.exception("Failed to load vector store")
 
         return False
 
@@ -156,43 +114,21 @@ class VectorStore:
         Retrieve nearest documents.
 
         Args:
-            query_embedding:
-                Query vector
-
-            top_k:
-                Number of results
-
-            selected_files:
-                Files selected by DocumentRouter.
-
-                Example:
-                [
-                    "metrics.md",
-                    "validation.md"
-                ]
+            query_embedding: Query vector
+            top_k: Number of results
+            selected_files: Files selected by DocumentRouter.
+                Example: ["metrics.md", "validation.md"]
         """
-
         if self.index is None:
             return []
 
-        # If filtering is required,
-        # retrieve more candidates first
-
         search_k = top_k
-
         if selected_files:
-            search_k = min(
-                len(self.metadata),
-                top_k * 5
-            )
+            search_k = min(len(self.metadata), top_k * 5)
 
-        scores, indices = (
-            self.index.search(
-                query_embedding.astype(
-                    "float32"
-                ),
-                search_k
-            )
+        scores, indices = self.index.search(
+            query_embedding.astype("float32"),
+            search_k
         )
 
         results = []
@@ -200,39 +136,24 @@ class VectorStore:
         for i, idx in enumerate(indices[0]):
             if idx < 0:
                 continue
-
-            if idx >= len(
-                self.metadata
-            ):
+            if idx >= len(self.metadata):
                 continue
 
-            document = (
-                self.metadata[idx]
-                .copy()
-            )
+            document = self.metadata[idx].copy()
 
-            # Metadata filtering with proper source handling
             if selected_files:
-                # Get the source from metadata
                 source = document.get("source", "")
-                # Check if source matches any selected file
-                # Handle both full path and filename
                 source_matches = False
                 for selected_file in selected_files:
                     if source == selected_file or source.endswith(selected_file):
                         source_matches = True
                         break
-                
+
                 if not source_matches:
                     continue
 
-            document["score"] = float(
-                scores[0][i]
-            )
-
-            results.append(
-                document
-            )
+            document["score"] = float(scores[0][i])
+            results.append(document)
 
             if len(results) >= top_k:
                 break
@@ -240,11 +161,5 @@ class VectorStore:
         return results
 
     def is_ready(self) -> bool:
-        """
-        Check if vector store is initialized.
-        """
-
-        return (
-            self.index is not None
-            and len(self.metadata) > 0
-        )
+        """Check if vector store is initialized."""
+        return self.index is not None and len(self.metadata) > 0
