@@ -2,14 +2,14 @@
 FAISS vector storage module.
 
 Supports:
-- Semantic similarity search
-- Metadata filtering for Agentic RAG
+- semantic similarity search
+- metadata filtering for Agentic RAG
 """
 
+import logging
 import os
 import pickle
-import logging
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 import faiss
 import numpy as np
@@ -26,7 +26,7 @@ class VectorStore:
         self,
         index_path: str = "storage/rag_index/index.faiss",
         metadata_path: str = "storage/rag_index/metadata.pkl",
-        dimension: int = 384
+        dimension: int = 384,
     ):
         self.index_path = index_path
         self.metadata_path = metadata_path
@@ -37,122 +37,251 @@ class VectorStore:
 
     @property
     def exists(self) -> bool:
-        """Check if FAISS index exists on disk."""
+        """
+        Check whether the FAISS index exists on disk.
+        """
+
         return os.path.exists(self.index_path)
 
-    def create(self, embeddings: np.ndarray, documents: List[Any]) -> None:
+    def create(
+        self,
+        embeddings: np.ndarray,
+        documents: List[Any],
+    ) -> None:
         """
-        Create FAISS index.
+        Create a FAISS index.
 
-        Documents can be:
-        - strings
-        - dictionaries with metadata
+        Documents may be dictionaries or strings.
+        Existing metadata fields are preserved.
         """
+
+        if embeddings is None or len(embeddings) == 0:
+            raise ValueError(
+                "Cannot create FAISS index from empty embeddings."
+            )
+
         self.dimension = embeddings.shape[1]
-        self.index = faiss.IndexFlatIP(self.dimension)
-        self.index.add(embeddings.astype("float32"))
+
+        self.index = faiss.IndexFlatIP(
+            self.dimension
+        )
+
+        self.index.add(
+            embeddings.astype("float32")
+        )
 
         self.metadata = []
 
         for i, doc in enumerate(documents):
+
             if isinstance(doc, dict):
-                metadata = {
-                    "content": doc.get("content", ""),
-                    "source": doc.get("source", "unknown"),
-                    "category": doc.get("category", "unknown"),
-                    "id": i
-                }
+
+                metadata = doc.copy()
+
+                metadata.setdefault(
+                    "content",
+                    "",
+                )
+
+                metadata.setdefault(
+                    "source",
+                    "unknown",
+                )
+
+                metadata.setdefault(
+                    "category",
+                    "unknown",
+                )
+
+                metadata.setdefault(
+                    "id",
+                    i,
+                )
+
             else:
+
                 metadata = {
-                    "content": doc,
+                    "id": i,
+                    "content": str(doc),
                     "source": "unknown",
                     "category": "unknown",
-                    "id": i
                 }
 
             self.metadata.append(metadata)
 
     def save(self) -> None:
-        """Save FAISS index and metadata."""
-        directory = os.path.dirname(self.index_path)
+        """
+        Persist FAISS index and metadata.
+        """
+
+        directory = os.path.dirname(
+            self.index_path
+        )
 
         if directory:
-            os.makedirs(directory, exist_ok=True)
+            os.makedirs(
+                directory,
+                exist_ok=True,
+            )
+
+        metadata_directory = os.path.dirname(
+            self.metadata_path
+        )
+
+        if metadata_directory:
+            os.makedirs(
+                metadata_directory,
+                exist_ok=True,
+            )
 
         if self.index is not None:
-            faiss.write_index(self.index, self.index_path)
+            faiss.write_index(
+                self.index,
+                self.index_path,
+            )
 
-        with open(self.metadata_path, "wb") as file:
-            pickle.dump(self.metadata, file)
+        with open(
+            self.metadata_path,
+            "wb",
+        ) as file:
+            pickle.dump(
+                self.metadata,
+                file,
+            )
 
     def load(self) -> bool:
-        """Load FAISS index and metadata."""
+        """
+        Load FAISS index and metadata from disk.
+        """
+
         try:
-            if self.exists:
-                self.index = faiss.read_index(self.index_path)
-                self.dimension = self.index.d
 
-                with open(self.metadata_path, "rb") as file:
-                    self.metadata = pickle.load(file)
+            if not self.exists:
+                return False
 
-                return True
+            if not os.path.exists(
+                self.metadata_path
+            ):
+                logger.warning(
+                    "FAISS index exists but metadata file is missing."
+                )
+                return False
+
+            self.index = faiss.read_index(
+                self.index_path
+            )
+
+            self.dimension = self.index.d
+
+            with open(
+                self.metadata_path,
+                "rb",
+            ) as file:
+                self.metadata = pickle.load(file)
+
+            if not isinstance(
+                self.metadata,
+                list,
+            ):
+                logger.warning(
+                    "Invalid metadata format."
+                )
+                self.index = None
+                self.metadata = []
+                return False
+
+            return True
 
         except Exception:
-            # FIX (#6) : logging cohérent avec le reste du module,
-            # au lieu d'un print() non capturé par la config de logging.
-            logger.exception("Failed to load vector store")
+            logger.exception(
+                "Failed to load vector store."
+            )
 
-        return False
+            self.index = None
+            self.metadata = []
+
+            return False
 
     def search(
         self,
         query_embedding: np.ndarray,
         top_k: int = 3,
-        selected_files: Optional[List[str]] = None
+        selected_files: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve nearest documents.
 
-        Args:
-            query_embedding: Query vector
-            top_k: Number of results
-            selected_files: Files selected by DocumentRouter.
-                Example: ["metrics.md", "validation.md"]
+        When selected_files is provided, FAISS retrieves
+        a larger candidate set and the results are then
+        filtered using document metadata.
         """
+
         if self.index is None:
             return []
 
-        search_k = top_k
+        if not self.metadata:
+            return []
+
+        if query_embedding is None:
+            return []
+
+        if top_k <= 0:
+            return []
+
+        # Retrieve extra candidates when filtering is active.
         if selected_files:
-            search_k = min(len(self.metadata), top_k * 5)
+            search_k = min(
+                len(self.metadata),
+                max(top_k * 5, top_k),
+            )
+        else:
+            search_k = min(
+                len(self.metadata),
+                top_k,
+            )
+
+        if search_k <= 0:
+            return []
 
         scores, indices = self.index.search(
             query_embedding.astype("float32"),
-            search_k
+            search_k,
         )
 
         results = []
 
+        selected_set = set(
+            selected_files or []
+        )
+
         for i, idx in enumerate(indices[0]):
+
             if idx < 0:
                 continue
+
             if idx >= len(self.metadata):
                 continue
 
             document = self.metadata[idx].copy()
 
-            if selected_files:
-                source = document.get("source", "")
-                source_matches = False
-                for selected_file in selected_files:
-                    if source == selected_file or source.endswith(selected_file):
-                        source_matches = True
-                        break
+            # -------------------------------------------------
+            # Metadata filtering
+            # -------------------------------------------------
 
-                if not source_matches:
+            if selected_set:
+
+                source = document.get(
+                    "source",
+                    "",
+                )
+
+                if source not in selected_set:
                     continue
 
-            document["score"] = float(scores[0][i])
+            document["score"] = float(
+                scores[0][i]
+            )
+
             results.append(document)
 
             if len(results) >= top_k:
@@ -161,5 +290,11 @@ class VectorStore:
         return results
 
     def is_ready(self) -> bool:
-        """Check if vector store is initialized."""
-        return self.index is not None and len(self.metadata) > 0
+        """
+        Check whether the vector store is initialized.
+        """
+
+        return (
+            self.index is not None
+            and len(self.metadata) > 0
+        )

@@ -2,49 +2,50 @@
 High level LangGraph Agent interface.
 """
 
-class LangGraphAgent:
 
-    def __init__(
-        self,
-        graph
-    ):
+class LangGraphAgent:
+    """
+    High-level interface used to interact with the compiled LangGraph.
+    """
+
+    def __init__(self, graph):
         self.graph = graph
 
-    def ask(
-        self,
-        question: str
-    ):
-        result = (
-            self.graph
-            .invoke(
-                {
-                    "question": question,
-                    "selected_files": [],
-                    "documents": [],
-                    "dataset_context": "",
-                    "prompt": "",
-                    "answer": "",
-                    "formatted_answer": "",
-                    "structured": None,
-                    "recommendation": None,
-                    "success": False,
-                    "format_success": False,
-                    "error": "",
-                    "retry_count": 0
-                }
-            )
-        )
+    def ask(self, question: str) -> dict:
+        """
+        Execute the LangGraph workflow for a user question.
+        """
 
-        # Use formatted_answer if available, otherwise fallback to answer
+        initial_state = {
+            "question": question,
+            "selected_files": [],
+            "documents": [],
+            "dataset_context": "",
+            "prompt": "",
+            "answer": "",
+            "formatted_answer": "",
+            "structured": None,
+            "recommendation": None,
+            "success": False,
+            "format_success": False,
+            "error": "",
+            "retry_count": 0,
+        }
+
+        result = self.graph.invoke(initial_state)
+
+        # Prefer formatted answer when formatting succeeded.
         answer = result.get("formatted_answer", "")
+
         if not answer:
             answer = result.get("answer", "")
 
         return {
             "answer": answer,
-            "structured": result.get("structured", None),
-            "recommendation": result.get("recommendation", None),
+            "structured": result.get("structured"),
+            "recommendation": result.get("recommendation"),
             "documents": result.get("documents", []),
             "selected_files": result.get("selected_files", []),
-            "success": result.get("success", False)
+            "success": result.get("success", False),
+            "error": result.get("error", ""),
         }

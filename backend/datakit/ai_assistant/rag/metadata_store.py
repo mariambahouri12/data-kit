@@ -2,54 +2,62 @@
 Metadata management for vector documents.
 """
 
-class MetadataStore:
 
-    def enrich(
-        self,
-        documents
-    ):
+class MetadataStore:
+    """
+    Normalize and enrich document metadata.
+    """
+
+    def enrich(self, documents):
         """
-        Enrich documents with metadata while preserving all original fields.
-        
+        Enrich documents while preserving their metadata.
+
         Args:
-            documents: List of document dictionaries
-                Each doc should have at least 'content'
-        
+            documents:
+                List of document dictionaries.
+
         Returns:
-            List of enriched documents with all original metadata + id
+            List of enriched documents.
         """
-        
+
         if not documents:
             return []
-        
+
         enriched = []
 
         for idx, doc in enumerate(documents):
-            # Handle different document formats
+
             if isinstance(doc, dict):
-                # Create a copy of all metadata
+
                 metadata = doc.copy()
-                
-                # Add or override id
+
+                metadata.setdefault(
+                    "content",
+                    "",
+                )
+
+                metadata.setdefault(
+                    "source",
+                    "unknown",
+                )
+
+                metadata.setdefault(
+                    "category",
+                    "unknown",
+                )
+
                 metadata["id"] = idx
-                
-                # Ensure required fields exist
-                if "content" not in metadata:
-                    metadata["content"] = ""
-                if "source" not in metadata:
-                    metadata["source"] = "unknown"
-                if "category" not in metadata:
-                    metadata["category"] = "unknown"
-                
+
                 enriched.append(metadata)
+
             else:
-                # If document is a string
+
                 enriched.append(
                     {
                         "id": idx,
                         "content": str(doc),
                         "source": "unknown",
-                        "category": "unknown"
+                        "category": "unknown",
                     }
                 )
 

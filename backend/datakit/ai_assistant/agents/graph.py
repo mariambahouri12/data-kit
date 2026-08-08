@@ -2,10 +2,7 @@
 LangGraph workflow definition.
 """
 
-from langgraph.graph import (
-    StateGraph,
-    END
-)
+from langgraph.graph import StateGraph, END
 
 from .state import AgentState
 
@@ -15,7 +12,7 @@ from .nodes import (
     context_node,
     prompt_node,
     generation_node,
-    validation_node
+    validation_node,
 )
 
 from .formatter_node import formatting_node
@@ -23,20 +20,26 @@ from .formatter_node import formatting_node
 
 def should_retry(state):
     """
-    Determine if we should retry generation.
+    Determine whether the workflow should retry generation.
+
+    Returns:
+        "success" -> formatting
+        "retry"   -> rebuild prompt and regenerate
+        "fail"    -> stop workflow
     """
+
     retry_count = state.get("retry_count", 0)
     success = state.get("success", False)
-    
-    # If success, stop
+
+    # Successful generation
     if success:
         return "success"
-    
-    # If too many retries, stop
+
+    # Maximum number of retries reached
     if retry_count >= 2:
         return "fail"
-    
-    # Retry - go back to prompt to rebuild with improved instructions
+
+    # Retry from prompt construction
     return "retry"
 
 
@@ -46,120 +49,123 @@ def create_graph(
     llm_client,
     router=None,
     context_manager=None,
-    response_formatter=None
+    response_formatter=None,
 ):
-    graph = StateGraph(
-        AgentState
-    )
+    """
+    Create and compile the LangGraph workflow.
+    """
 
-    # --------------------------
+    graph = StateGraph(AgentState)
+
+    # =========================================================
     # Nodes
-    # --------------------------
+    # =========================================================
 
     graph.add_node(
         "router",
         lambda state: router_node(
             state,
-            router
-        )
+            router,
+        ),
     )
 
     graph.add_node(
         "retrieval",
         lambda state: retrieval_node(
             state,
-            retriever
-        )
+            retriever,
+        ),
     )
 
     graph.add_node(
         "context",
         lambda state: context_node(
             state,
-            context_manager
-        )
+            context_manager,
+        ),
     )
 
     graph.add_node(
         "prompt",
         lambda state: prompt_node(
             state,
-            prompt_manager
-        )
+            prompt_manager,
+        ),
     )
 
     graph.add_node(
         "generation",
         lambda state: generation_node(
             state,
-            llm_client
-        )
+            llm_client,
+        ),
     )
 
-    # Validation BEFORE formatting
     graph.add_node(
         "validation",
-        validation_node
+        validation_node,
     )
 
-    # Formatting AFTER validation
     graph.add_node(
         "format",
         lambda state: formatting_node(
             state,
-            response_formatter
-        )
+            response_formatter,
+        ),
     )
 
-    # --------------------------
-    # Flow
-    # --------------------------
+    # =========================================================
+    # Main flow
+    # =========================================================
 
-    graph.set_entry_point(
-        "router"
-    )
+    graph.set_entry_point("router")
 
     graph.add_edge(
         "router",
-        "retrieval"
+        "retrieval",
     )
 
     graph.add_edge(
         "retrieval",
-        "context"
+        "context",
     )
 
     graph.add_edge(
         "context",
-        "prompt"
+        "prompt",
     )
 
     graph.add_edge(
         "prompt",
-        "generation"
+        "generation",
     )
 
-    # Generation -> Validation
     graph.add_edge(
         "generation",
-        "validation"
+        "validation",
     )
 
-    # Conditional edge from validation
+    # =========================================================
+    # Validation routing
+    # =========================================================
+
     graph.add_conditional_edges(
         "validation",
         should_retry,
         {
-            "success": "format",  # Go to formatting on success
-            "retry": "prompt",    # Retry from prompt (rebuild with better instructions)
-            "fail": END          # Stop on too many retries
-        }
+            "success": "format",
+            "retry": "prompt",
+            "fail": END,
+        },
     )
 
-    # Formatting -> END
+    # =========================================================
+    # Final formatting
+    # =========================================================
+
     graph.add_edge(
         "format",
-        END
+        END,
     )
 
     return graph.compile()

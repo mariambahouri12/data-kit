@@ -2,7 +2,8 @@
 Shared state definition for LangGraph workflow.
 """
 
-from typing import TypedDict, List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional, TypedDict
+
 
 class AgentState(TypedDict, total=False):
     """
@@ -12,38 +13,38 @@ class AgentState(TypedDict, total=False):
     # User question
     question: str
 
-    # Dataset information
+    # DataKit dataset/project context
     dataset_context: Optional[str]
 
-    # Router output
+    # Files selected by DocumentRouter
     selected_files: List[str]
 
-    # Retrieved documents
+    # Documents retrieved from FAISS
     documents: List[Dict[str, Any]]
 
-    # Final prompt
+    # Final LLM prompt
     prompt: str
 
-    # Generated answer
+    # Raw LLM answer
     answer: str
 
-    # Formatted answer (after formatting node)
+    # Formatted answer
     formatted_answer: str
 
-    # Structured data (if JSON)
+    # Parsed structured response
     structured: Optional[Dict[str, Any]]
-    
-    # Recommendation format
+
+    # UI recommendation structure
     recommendation: Optional[Dict[str, Any]]
 
-    # Execution status
+    # Workflow status
     success: bool
 
-    # Formatting success
+    # Formatting status
     format_success: bool
 
-    # Errors
+    # Error information
     error: str
 
-    # Retry counter (incrémenté dans validation_node)
+    # Number of generation retries
     retry_count: int
