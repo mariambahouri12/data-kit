@@ -1,9 +1,6 @@
 """
 Assistant service for the DataKit AI assistant.
 
-Façade applicative : initialisation paresseuse, gestion d'erreurs,
-format de réponse API, statut. Délègue tout le travail réel à
-AssistantOrchestrator (voir ai_assistant/orchestrator.py).
 
 Flow:
     User question
@@ -36,9 +33,7 @@ class AssistantService:
     - expose assistant status
     - delegate knowledge-base indexing
 
-    Ne réimplémente jamais : embeddings, classification, Redis,
-    Qdrant, chunking, prompt building, LLM generation — tout ça
-    vit dans AssistantOrchestrator.
+
     """
 
     def __init__(
@@ -152,9 +147,6 @@ class AssistantService:
         Convert the orchestrator's AssistantResponse into the
         public API format.
 
-        FIX : AssistantResponse n'a pas de champ `cache_hit` — on
-        le dérive de `source`, qui vaut "cache_private", "cache_shared"
-        ou "rag".
         """
 
         response = AIResponse(
