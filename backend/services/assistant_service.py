@@ -1,35 +1,62 @@
 """
-Assistant service - interface with LangGraph Agent.
+Assistant service for the DataKit AI assistant.
+
+Façade applicative : initialisation paresseuse, gestion d'erreurs,
+format de réponse API, statut. Délègue tout le travail réel à
+AssistantOrchestrator (voir ai_assistant/orchestrator.py).
+
+Flow:
+    User question
+        ↓
+    AssistantOrchestrator.ask()
+        ↓
+    dict standardisé pour l'API
 """
 
 import logging
-import os
-from pathlib import Path
+from typing import Any, Dict, Optional
+
+import pandas as pd
 
 from datakit.ai_assistant.models import AIResponse
-
-from .ai_context_state import (
-    context_manager as shared_context_manager,
-)
+from datakit.ai_assistant.context.context_manager import ContextManager
+from datakit.ai_assistant.factory import create_assistant
 
 logger = logging.getLogger(__name__)
 
 
 class AssistantService:
     """
-    Service responsible for AI assistant communication.
+    Application-level service for the DataKit AI assistant.
+
+    Responsibilities:
+    - initialize the orchestrator lazily
+    - expose chat()
+    - expose dataset/preprocessing context management
+    - expose assistant status
+    - delegate knowledge-base indexing
+
+    Ne réimplémente jamais : embeddings, classification, Redis,
+    Qdrant, chunking, prompt building, LLM generation — tout ça
+    vit dans AssistantOrchestrator.
     """
 
-    def __init__(self):
-        self._assistant = None
-        self._agent = None
+    def __init__(
+        self,
+        context_manager: Optional[ContextManager] = None,
+    ) -> None:
+        self._context_manager = context_manager
+
+        self._orchestrator = None
         self._initialized = False
         self._init_attempted = False
 
-    def _initialize(self):
-        """
-        Lazily initialize the AI assistant.
-        """
+    # =============================================================
+    # INITIALIZATION
+    # =============================================================
+
+    def _initialize(self) -> None:
+        """Lazily initialize the orchestrator."""
 
         if self._init_attempted:
             return
@@ -37,162 +64,263 @@ class AssistantService:
         self._init_attempted = True
 
         try:
-
-            from datakit.ai_assistant import (
-                create_assistant,
+            self._orchestrator = create_assistant(
+                context_manager=self._context_manager,
             )
 
-            knowledge_base_path = os.getenv(
-                "KNOWLEDGE_BASE_PATH"
-            )
+            self._initialized = self._orchestrator is not None
 
-            if knowledge_base_path:
-                knowledge_base_path = Path(
-                    knowledge_base_path
+            if self._initialized:
+                logger.info(
+                    "DataKit AI orchestrator initialized successfully."
                 )
 
-            self._assistant = create_assistant(
-                model_name=os.getenv(
-                    "OLLAMA_MODEL",
-                    "mistral",
-                ),
-                knowledge_base_path=knowledge_base_path,
-                context_manager=shared_context_manager,
-            )
-
-            self._agent = self._assistant.get(
-                "agent"
-            )
-
-            self._initialized = (
-                self._agent is not None
-            )
-
-            logger.info(
-                "AI assistant initialized."
-            )
-
         except Exception:
+            self._orchestrator = None
+            self._initialized = False
+
             logger.exception(
-                "Assistant initialization failed."
+                "Failed to initialize DataKit AI orchestrator."
             )
 
-            self._initialized = False
-            self._agent = None
-            self._assistant = None
+    # =============================================================
+    # RESET
+    # =============================================================
 
     def reset(self) -> None:
-        """
-        Reset the assistant so it can be initialized again.
-        """
+        """Reset the orchestrator. Next call recreates it."""
 
-        self._assistant = None
-        self._agent = None
+        self._orchestrator = None
         self._initialized = False
         self._init_attempted = False
 
-    def chat(
-        self,
-        message: str,
-    ) -> dict:
-        """
-        Process a user message through the LangGraph agent.
-        """
+        logger.info("DataKit AI orchestrator reset.")
+
+    # =============================================================
+    # CHAT
+    # =============================================================
+
+    def chat(self, message: str) -> Dict[str, Any]:
+        """Process a user question and return an API-ready dict."""
+
+        message = message.strip()
+
+        if not message:
+            return self._error_response(
+                question=message,
+                error="Question cannot be empty.",
+            )
 
         self._initialize()
 
-        if self._agent is None:
-
-            response = AIResponse(
+        if self._orchestrator is None:
+            return self._error_response(
                 question=message,
-                answer="Assistant unavailable",
-                success=False,
+                error=(
+                    "Assistant unavailable. "
+                    "Check Redis, Qdrant, classifier "
+                    "and Ollama configuration."
+                ),
             )
-
-            return {
-                **response.to_dict(),
-                "documents": [],
-                "selected_files": [],
-                "structured": None,
-                "recommendation": None,
-            }
 
         try:
+            result = self._orchestrator.ask(message)
 
-            result = self._agent.ask(
-                message
-            )
-
-            response = AIResponse(
+            return self._build_response(
                 question=message,
-                answer=result.get(
-                    "answer",
-                    "",
-                ),
-                success=result.get(
-                    "success",
-                    False,
-                ),
+                result=result,
             )
 
-            return {
-                **response.to_dict(),
+        except Exception as exc:
+            logger.exception("Chat processing failed.")
 
-                # RAG information
-                "documents": result.get(
-                    "documents",
-                    [],
-                ),
-
-                "selected_files": result.get(
-                    "selected_files",
-                    [],
-                ),
-
-                # Structured LLM output
-                "structured": result.get(
-                    "structured",
-                    None,
-                ),
-
-                "recommendation": result.get(
-                    "recommendation",
-                    None,
-                ),
-
-                # Optional workflow error
-                "error": result.get(
-                    "error",
-                    "",
-                ),
-            }
-
-        except Exception as e:
-
-            logger.exception(
-                "Assistant error."
-            )
-
-            response = AIResponse(
+            return self._error_response(
                 question=message,
-                answer=str(e),
-                success=False,
+                error=str(exc),
             )
 
-            return {
-                **response.to_dict(),
-                "documents": [],
-                "selected_files": [],
-                "structured": None,
-                "recommendation": None,
-                "error": str(e),
-            }
+    # =============================================================
+    # RESPONSE
+    # =============================================================
+
+    @staticmethod
+    def _build_response(
+        question: str,
+        result: Any,
+    ) -> Dict[str, Any]:
+        """
+        Convert the orchestrator's AssistantResponse into the
+        public API format.
+
+        FIX : AssistantResponse n'a pas de champ `cache_hit` — on
+        le dérive de `source`, qui vaut "cache_private", "cache_shared"
+        ou "rag".
+        """
+
+        response = AIResponse(
+            question=question,
+            answer=result.answer,
+            success=True,
+        )
+
+        return {
+            **response.to_dict(),
+            "source": result.source,
+            "similarity": result.similarity,
+            "cache_hit": result.source.startswith("cache_"),
+        }
+
+    @staticmethod
+    def _error_response(
+        question: str,
+        error: str,
+    ) -> Dict[str, Any]:
+        """Build a consistent error response."""
+
+        response = AIResponse(
+            question=question,
+            answer="Unable to process the request.",
+            success=False,
+        )
+
+        return {
+            **response.to_dict(),
+            "source": None,
+            "similarity": None,
+            "cache_hit": False,
+            "error": error,
+        }
+
+    # =============================================================
+    # STATUS
+    # =============================================================
 
     def is_available(self) -> bool:
-        """
-        Check whether the assistant is available.
-        """
+        """Return True if the orchestrator is available."""
 
         self._initialize()
 
-        return self._agent is not None
+        return self._orchestrator is not None
+
+    def get_status(self) -> Dict[str, Any]:
+        """Return basic assistant status."""
+
+        self._initialize()
+
+        return {
+            "available": self._orchestrator is not None,
+            "initialized": self._initialized,
+            "init_attempted": self._init_attempted,
+        }
+
+    # =============================================================
+    # CONTEXT MANAGEMENT
+    # =============================================================
+
+    def get_context(self) -> Dict[str, Any]:
+        """Return the current dataset and preprocessing context."""
+
+        return self._get_context_manager().get_full_context()
+
+    def get_context_markdown(self) -> str:
+        """Return the current context as Markdown."""
+
+        return self._get_context_manager().to_markdown_context()
+
+    def update_dataset(
+        self,
+        dataframe: pd.DataFrame,
+        dataset_name: str = "dataset",
+    ) -> None:
+        """Update the current dataset context."""
+
+        self._get_context_manager().update_dataset(
+            dataframe=dataframe,
+            dataset_name=dataset_name,
+        )
+
+    def update_preprocessing(
+        self,
+        operation_name: str,
+        columns: list[str],
+        parameters: Optional[dict] = None,
+    ) -> None:
+        """Register a preprocessing operation."""
+
+        self._get_context_manager().update_preprocessing(
+            operation_name=operation_name,
+            columns=columns,
+            parameters=parameters,
+        )
+
+    def _get_context_manager(self) -> ContextManager:
+        """Return the configured context manager."""
+
+        if self._context_manager is not None:
+            return self._context_manager
+
+        self._initialize()
+
+        if self._orchestrator is None:
+            raise RuntimeError("Assistant is not initialized.")
+
+        context_manager = getattr(
+            self._orchestrator,
+            "context_manager",
+            None,
+        )
+
+        if context_manager is None:
+            raise RuntimeError("Context manager is not configured.")
+
+        return context_manager
+
+    # =============================================================
+    # KNOWLEDGE BASE
+    # =============================================================
+
+    def rebuild_index(self) -> bool:
+        """Rebuild the Qdrant knowledge-base index."""
+
+        self._initialize()
+
+        if self._orchestrator is None:
+            logger.error("Cannot rebuild index: assistant unavailable.")
+            return False
+
+        indexer = getattr(
+            self._orchestrator,
+            "indexer",
+            None,
+        )
+
+        if indexer is None:
+            logger.error("Qdrant indexer is not configured.")
+            return False
+
+        try:
+            indexed_count = indexer.index()
+
+            logger.info(
+                "Qdrant index rebuilt: %d chunks.",
+                indexed_count,
+            )
+
+            return True
+
+        except Exception:
+            logger.exception("Qdrant index rebuild failed.")
+            return False
+
+
+# =============================================================
+# SINGLETON
+# =============================================================
+
+assistant_service = AssistantService()
+
+
+__all__ = [
+    "AssistantService",
+    "assistant_service",
+]

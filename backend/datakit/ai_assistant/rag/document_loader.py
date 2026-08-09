@@ -1,62 +1,61 @@
 """
-Load Markdown documents for RAG.
+Knowledge-base document loading.
 """
 
+from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Dict, Any
+
+
+@dataclass
+class LoadedDocument:
+    """Raw document loaded from the knowledge base."""
+
+    document_id: str
+    name: str
+    content: str
+    source: str
 
 
 class DocumentLoader:
-    """
-    Load Markdown documents from the knowledge base.
-    """
+    """Load Markdown documents from a directory."""
 
-    SUPPORTED_EXTENSION = ".md"
+    SUPPORTED_EXTENSIONS = {".md"}
 
-    def __init__(self, knowledge_base_path):
-        self.base_path = Path(knowledge_base_path)
-
-    def load(
+    def __init__(
         self,
-        selected_files: List[str],
-    ) -> List[Dict[str, Any]]:
-        """
-        Load selected Markdown files.
+        knowledge_base_path: str,
+    ) -> None:
+        self.root = Path(
+            knowledge_base_path
+        )
 
-        Args:
-            selected_files:
-                List of Markdown filenames.
+    def load(self) -> list[LoadedDocument]:
+        """Load all supported documents."""
 
-        Returns:
-            List of document dictionaries.
-        """
+        if not self.root.exists():
+            raise FileNotFoundError(
+                f"Knowledge base not found: {self.root}"
+            )
 
         documents = []
 
-        if not self.base_path.exists():
-            return documents
-
-        selected_set = set(selected_files or [])
-
-        for file_path in self.base_path.rglob("*.md"):
-
-            if file_path.name not in selected_set:
-                continue
-
-            try:
-                content = file_path.read_text(
-                    encoding="utf-8"
-                )
-
+        for path in sorted(
+            self.root.rglob("*")
+        ):
+            if (
+                path.is_file()
+                and path.suffix.lower()
+                in self.SUPPORTED_EXTENSIONS
+            ):
                 documents.append(
-                    {
-                        "content": content,
-                        "source": file_path.name,
-                        "category": file_path.parent.name,
-                    }
+                    LoadedDocument(
+                        document_id=path.stem,
+                        name=path.name,
+                        content=path.read_text(
+                            encoding="utf-8"
+                        ),
+                        source=str(path),
+                    )
                 )
-
-            except OSError:
-                continue
 
         return documents
