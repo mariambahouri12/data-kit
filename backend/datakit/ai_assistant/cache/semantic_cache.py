@@ -35,47 +35,34 @@ class SemanticCache:
         """
 
         if scope not in {"private", "shared"}:
-            raise ValueError(
-                f"Unsupported cache scope: {scope}"
-            )
+            raise ValueError(f"Unsupported cache scope: {scope}")
 
         if scope == "private" and not dataset_fingerprint:
             return None
 
         index_name = f"idx:cache:{scope}"
 
-        query = (
-            f"(*)=>[KNN 1 @embedding $vector "
-            f"AS vector_distance]"
-        )
-
-        params = {
-            "query": query,
-            "vector": np.asarray(
-                embedding,
-                dtype=np.float32,
-            ).tobytes(),
-            "k": 1,
-        }
-
         if scope == "private":
             query = (
-                f"(@dataset_fingerprint:{{"
-                f"{dataset_fingerprint}"
-                f"}})=>[KNN 1 @embedding $vector "
-                f"AS vector_distance]"
+                f"(@dataset_fingerprint:{{{dataset_fingerprint}}})"
+                f"=>[KNN 1 @embedding $vector AS vector_distance]"
             )
+        else:
+            query = "(*)=>[KNN 1 @embedding $vector AS vector_distance]"
 
-            params["query"] = query
+        vector_bytes = np.asarray(
+            embedding,
+            dtype=np.float32,
+        ).tobytes()
 
         result = self.client.execute_command(
             "FT.SEARCH",
             index_name,
-            params["query"],
+            query,
             "PARAMS",
-            "4",
+            "2",
             "vector",
-            params["vector"],
+            vector_bytes,
             "DIALECT",
             "2",
             "SORTBY",
@@ -95,11 +82,9 @@ class SemanticCache:
         if not result or result[0] == 0:
             return None
 
-        fields = self._parse_fields(result[2:])
+        fields = self._parse_fields(result[2])
 
-        distance = float(
-            fields.get("vector_distance", 1.0)
-        )
+        distance = float(fields.get("vector_distance", 1.0))
 
         similarity = 1.0 - distance
 
@@ -110,9 +95,7 @@ class SemanticCache:
             question=fields["question"],
             answer=fields["answer"],
             scope=fields["scope"],
-            dataset_fingerprint=fields.get(
-                "dataset_fingerprint"
-            ),
+            dataset_fingerprint=fields.get("dataset_fingerprint"),
             similarity=similarity,
         )
 
@@ -127,20 +110,14 @@ class SemanticCache:
         """Store a question-answer pair in Redis."""
 
         if scope not in {"private", "shared"}:
-            raise ValueError(
-                f"Unsupported cache scope: {scope}"
-            )
+            raise ValueError(f"Unsupported cache scope: {scope}")
 
         if scope == "private" and not dataset_fingerprint:
             raise ValueError(
-                "Private cache entries require "
-                "a dataset fingerprint."
+                "Private cache entries require a dataset fingerprint."
             )
 
-        key = (
-            f"cache:{scope}:"
-            f"{uuid.uuid4().hex}"
-        )
+        key = f"cache:{scope}:{uuid.uuid4().hex}"
 
         self.client.hset(
             key,
@@ -148,9 +125,7 @@ class SemanticCache:
                 "question": question,
                 "answer": answer,
                 "scope": scope,
-                "dataset_fingerprint": (
-                    dataset_fingerprint or ""
-                ),
+                "dataset_fingerprint": dataset_fingerprint or "",
                 "embedding": np.asarray(
                     embedding,
                     dtype=np.float32,
@@ -159,18 +134,12 @@ class SemanticCache:
         )
 
     @staticmethod
-    def _parse_fields(
-        raw_fields: list,
-    ) -> dict:
-        """Convert Redis field/value pairs into a dictionary."""
+    def _parse_fields(raw_fields: list) -> dict:
+        """Convert a flat Redis field/value list into a dictionary."""
 
         fields = {}
 
-        for index in range(
-            0,
-            len(raw_fields),
-            2,
-        ):
+        for index in range(0, len(raw_fields), 2):
             key = raw_fields[index]
             value = raw_fields[index + 1]
 

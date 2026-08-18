@@ -29,9 +29,7 @@ class DatasetContextBuilder:
         self.missing_threshold = missing_threshold
         self.outlier_method = outlier_method
         self.outlier_threshold = outlier_threshold
-        self.correlation_threshold = (
-            correlation_threshold
-        )
+        self.correlation_threshold = correlation_threshold
         self.max_categories = max_categories
 
     def build(
@@ -43,10 +41,7 @@ class DatasetContextBuilder:
         if dataframe is None or dataframe.empty:
             return {
                 "dataset_name": dataset_name,
-                "shape": {
-                    "rows": 0,
-                    "columns": 0,
-                },
+                "shape": {"rows": 0, "columns": 0},
                 "detected_problems": [],
                 "detectors": {},
             }
@@ -77,9 +72,7 @@ class DatasetContextBuilder:
                 "rows": int(dataframe.shape[0]),
                 "columns": int(dataframe.shape[1]),
             },
-            "detected_problems": self._collect_problems(
-                detectors
-            ),
+            "detected_problems": self._collect_problems(detectors),
             "detectors": {
                 "missing_values": self._missing_context(
                     detectors["missing_values"]
@@ -106,17 +99,8 @@ class DatasetContextBuilder:
         problems = []
 
         for name, detector in detectors.items():
-            for problem in getattr(
-                detector,
-                "problems",
-                [],
-            ):
-                problems.append(
-                    {
-                        "detector": name,
-                        **problem,
-                    }
-                )
+            for problem in getattr(detector, "problems", []):
+                problems.append({"detector": name, **problem})
 
         return problems
 
@@ -128,25 +112,13 @@ class DatasetContextBuilder:
         stats = detector.missing_stats
 
         return {
-            "total_missing": int(
-                stats.get("total_missing", 0)
-            ),
-            "total_cells": int(
-                stats.get("total_cells", 0)
-            ),
+            "total_missing": int(stats.get("total_missing", 0)),
+            "total_cells": int(stats.get("total_cells", 0)),
             "missing_percentage": round(
-                float(
-                    stats.get(
-                        "missing_percentage",
-                        0,
-                    )
-                ),
+                float(stats.get("missing_percentage", 0)),
                 2,
             ),
-            "columns": stats.get(
-                "columns",
-                {},
-            ),
+            "columns": stats.get("columns", {}),
         }
 
     @staticmethod
@@ -156,10 +128,7 @@ class DatasetContextBuilder:
 
         method = (
             detector.method.value
-            if hasattr(
-                detector.method,
-                "value",
-            )
+            if hasattr(detector.method, "value")
             else str(detector.method)
         )
 
@@ -176,10 +145,7 @@ class DatasetContextBuilder:
 
         correlations = detector.correlations
 
-        pairs = correlations.get(
-            "high_corr_pairs",
-            [],
-        )
+        pairs = correlations.get("high_corr_pairs", [])
 
         return {
             "threshold": detector.threshold,
@@ -202,6 +168,4 @@ class DatasetContextBuilder:
         detector: DuplicateDetector,
     ) -> dict[str, Any]:
 
-        return {
-            "duplicate_count": detector.duplicate_count,
-        }
+        return {"duplicate_count": detector.duplicate_count}

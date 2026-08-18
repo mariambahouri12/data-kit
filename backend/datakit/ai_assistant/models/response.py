@@ -1,11 +1,13 @@
+"""
+Response model returned by the assistant orchestrator.
+"""
+
 from dataclasses import dataclass
 from typing import Optional
 
 
 @dataclass
-class CacheEntry:
-    question: str
+class AssistantResponse:
     answer: str
-    scope: str
-    dataset_fingerprint: Optional[str] = None
+    source: str
     similarity: Optional[float] = None

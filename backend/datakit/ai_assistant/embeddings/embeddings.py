@@ -27,7 +27,7 @@ class EmbeddingModel:
     @property
     def dimension(self) -> int:
         """Return embedding dimension."""
-        return self.model.get_embedding_dimension()
+        return self.model.get_sentence_embedding_dimension()
 
     def encode_query(self, text: str) -> np.ndarray:
         """Generate a normalized embedding for one query."""

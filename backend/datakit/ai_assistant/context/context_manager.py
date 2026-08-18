@@ -1,5 +1,12 @@
 """
 Dataset and preprocessing context management.
+
+NOTE: this class holds mutable per-dataset state on the instance
+(dataset_context, current_dataset_name, _dataset_fingerprint). If a
+single ContextManager instance is shared across multiple users or
+sessions (as it currently is via factory.create_assistant()), that
+state will leak between them. Scope one ContextManager per
+session/user rather than sharing a single instance app-wide.
 """
 
 import hashlib
@@ -21,16 +28,10 @@ class ContextManager:
         preprocessing_context: PreprocessingContext,
     ) -> None:
         self.dataset_builder = dataset_builder
-        self.preprocessing_context = (
-            preprocessing_context
-        )
+        self.preprocessing_context = preprocessing_context
 
-        self.dataset_context: Optional[
-            dict[str, Any]
-        ] = None
-
+        self.dataset_context: Optional[dict[str, Any]] = None
         self.current_dataset_name: Optional[str] = None
-
         self._dataset_fingerprint: Optional[str] = None
 
     def update_dataset(
@@ -43,20 +44,16 @@ class ContextManager:
             self.clear_dataset()
             return
 
-        self.dataset_context = (
-            self.dataset_builder.build(
-                dataframe,
-                dataset_name,
-            )
+        self.dataset_context = self.dataset_builder.build(
+            dataframe,
+            dataset_name,
         )
 
         self.current_dataset_name = dataset_name
 
-        self._dataset_fingerprint = (
-            self._compute_fingerprint(
-                dataframe,
-                dataset_name,
-            )
+        self._dataset_fingerprint = self._compute_fingerprint(
+            dataframe,
+            dataset_name,
         )
 
     def clear_dataset(self) -> None:
@@ -79,9 +76,7 @@ class ContextManager:
             parameters,
         )
 
-    def get_dataset_fingerprint(
-        self,
-    ) -> Optional[str]:
+    def get_dataset_fingerprint(self) -> Optional[str]:
         """Return current dataset fingerprint."""
         return self._dataset_fingerprint
 
@@ -90,9 +85,7 @@ class ContextManager:
 
         return {
             "dataset": self.dataset_context,
-            "preprocessing": (
-                self.preprocessing_context.get_context()
-            ),
+            "preprocessing": self.preprocessing_context.get_context(),
         }
 
     def to_prompt_format(self) -> str:
@@ -106,84 +99,47 @@ class ContextManager:
         )
 
     def to_markdown_context(self) -> str:
-        """Create compact Markdown context for the LLM."""
+        """Create a compact Markdown context for the LLM."""
 
         if not self.dataset_context:
-            return "Aucune donnée chargée."
+            return "No dataset loaded."
 
         dataset = self.dataset_context
 
         lines = [
-            f"## Dataset: "
-            f"{dataset.get('dataset_name', 'unknown')}",
+            f"## Dataset: {dataset.get('dataset_name', 'unknown')}",
             "",
-            f"- Lignes: "
-            f"{dataset.get('shape', {}).get('rows', 0)}",
-            f"- Colonnes: "
-            f"{dataset.get('shape', {}).get('columns', 0)}",
+            f"- Rows: {dataset.get('shape', {}).get('rows', 0)}",
+            f"- Columns: {dataset.get('shape', {}).get('columns', 0)}",
         ]
 
-        problems = dataset.get(
-            "detected_problems",
-            [],
-        )
+        problems = dataset.get("detected_problems", [])
 
-        lines.extend(
-            [
-                "",
-                "## Problèmes détectés",
-            ]
-        )
+        lines.extend(["", "## Detected issues"])
 
         if problems:
             for problem in problems:
-                lines.append(
-                    f"- {problem}"
-                )
+                lines.append(f"- {problem}")
         else:
-            lines.append(
-                "- Aucun problème détecté."
-            )
+            lines.append("- No issues detected.")
 
-        preprocessing = (
-            self.preprocessing_context
-            .get_context()
-            .get("operations", [])
+        preprocessing = self.preprocessing_context.get_context().get(
+            "operations", []
         )
 
-        lines.extend(
-            [
-                "",
-                "## Prétraitement",
-            ]
-        )
+        lines.extend(["", "## Preprocessing"])
 
         if preprocessing:
             for operation in preprocessing:
-                name = operation.get(
-                    "operation",
-                    "unknown",
-                )
+                name = operation.get("operation", "unknown")
 
-                columns = ", ".join(
-                    operation.get(
-                        "columns",
-                        [],
-                    )
-                )
+                columns = ", ".join(operation.get("columns", []))
 
                 lines.append(
-                    f"- {name}"
-                    + (
-                        f" sur {columns}"
-                        if columns
-                        else ""
-                    )
+                    f"- {name}" + (f" on {columns}" if columns else "")
                 )
         else:
-            lines.append(
-                "- Aucun prétraitement effectué."
-            )
+            lines.append("- No preprocessing applied.")
 
         return "\n".join(lines)
 
@@ -192,6 +148,12 @@ class ContextManager:
         dataframe: pd.DataFrame,
         dataset_name: str,
     ) -> str:
+        """
+        Compute a fingerprint identifying this dataset's schema AND
+        content. Content is included (via a vectorized row hash) so
+        that replacing the dataset with another one sharing the same
+        shape/dtypes still invalidates the private cache.
+        """
 
         columns_signature = ",".join(
             f"{column}:{dtype}"
@@ -201,13 +163,18 @@ class ContextManager:
             )
         )
 
+        content_hash = hashlib.sha256(
+            pd.util.hash_pandas_object(
+                dataframe,
+                index=False,
+            ).values.tobytes()
+        ).hexdigest()[:16]
+
         signature = (
             f"{dataset_name}|"
-            f"{dataframe.shape[0]}x"
-            f"{dataframe.shape[1]}|"
-            f"{columns_signature}"
+            f"{dataframe.shape[0]}x{dataframe.shape[1]}|"
+            f"{columns_signature}|"
+            f"{content_hash}"
         )
 
-        return hashlib.sha256(
-            signature.encode("utf-8")
-        ).hexdigest()[:16]
+        return hashlib.sha256(signature.encode("utf-8")).hexdigest()[:16]
