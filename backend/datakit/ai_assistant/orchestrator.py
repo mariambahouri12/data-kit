@@ -1,38 +1,38 @@
 """
 Assistant orchestrator for the DataKit AI assistant.
 
-Ce module contient le moteur : embedding, classification,
-cache sémantique Redis, RAG (Qdrant + dataset context), LLM.
+This module contains the engine: embedding, classification,
+Redis semantic cache, RAG (hybrid Qdrant + BM25 search + dataset
+context), LLM.
 
-Il ne gère PAS :
-    - l'initialisation paresseuse / les erreurs applicatives
-    - le format de réponse exposé à l'API
-    - le statut "is_available"
+It does NOT handle:
+    - lazy initialization / application-level errors
+    - the response format exposed by the API
+    - the "is_available" status
 
-Ces responsabilités appartiennent à services.assistant_service.AssistantService,
-qui délègue son travail réel à cette classe.
+These responsibilities belong to services.assistant_service.AssistantService,
+which delegates the actual work to this class.
 
 Flow:
 
     question
-        ↓
+        |
     embedding
-        ↓
+        |
     ML classifier (private / shared)
-        ↓
-    scope resolution (fallback private -> shared si aucun
-    dataset n'est chargé, pour rester cohérent entre
-    search() et store())
-        ↓
+        |
+    scope resolution (fallback private -> shared if no dataset is
+    loaded, to stay consistent between search() and store())
+        |
     Redis semantic cache
-        ├── hit  -> réponse directe
-        └── miss -> RAG
-                        │
-                        ├── shared  -> Qdrant seul (connaissance générale)
-                        └── private -> Qdrant + dataset_context
-                        ↓
+        |-- hit  -> direct answer
+        |-- miss -> RAG
+                        |
+                        |-- shared  -> hybrid search only (general knowledge)
+                        |-- private -> hybrid search + dataset_context
+                        |
                        LLM
-                        ↓
+                        |
                  Redis cache (store)
 """
 
@@ -48,25 +48,23 @@ from .llm.ollama_client import OllamaClient
 from .llm.prompt_builder import PromptBuilder
 from .cache.semantic_cache import SemanticCache
 from .models.response import AssistantResponse
-from .rag.retriever import QdrantRetriever
+from .rag.hybrid_retriever import HybridRetriever
 
 
 logger = logging.getLogger(__name__)
 
 
 class AssistantOrchestrator:
-    """Orchestrates the cache-first RAG flow (le moteur, pas la façade)."""
+    """Orchestrates the cache-first RAG flow (the engine, not the facade)."""
 
-    NO_DATASET_CONTEXT = (
-        "Aucun contexte dataset applicable pour cette question."
-    )
+    NO_DATASET_CONTEXT = "No applicable dataset context for this question."
 
     def __init__(
         self,
         embedding_model: EmbeddingModel,
         classifier: QueryClassifier,
         semantic_cache: SemanticCache,
-        retriever: QdrantRetriever,
+        retriever: HybridRetriever,
         context_manager: ContextManager,
         prompt_builder: PromptBuilder,
         llm: OllamaClient,
@@ -89,30 +87,30 @@ class AssistantOrchestrator:
         dataset_fingerprint: Optional[str],
     ) -> str:
         """
-        Réconcilie la prédiction du classifier avec la disponibilité
-        réelle d'un dataset (voir search() vs store() dans
-        SemanticCache : le premier tolère l'absence de fingerprint,
-        le second lève une ValueError).
+        Reconciles the classifier's prediction with the actual
+        availability of a dataset (see search() vs store() in
+        SemanticCache: the former tolerates a missing fingerprint,
+        the latter raises a ValueError).
         """
 
         if predicted_scope == "private" and not dataset_fingerprint:
             logger.info(
-                "Scope 'private' prédit sans dataset chargé — "
-                "fallback vers 'shared'."
+                "Scope 'private' predicted without a loaded dataset - "
+                "falling back to 'shared'."
             )
             return "shared"
 
         return predicted_scope
 
     # =============================================================
-    # Dataset context (uniquement pour le scope "private")
+    # Dataset context (only for the "private" scope)
     # =============================================================
 
     def _build_dataset_context(self, scope: str) -> str:
         """
-        Injecte le contexte dataset uniquement si la question est
-        "private". Une question "shared" n'a pas besoin de l'état
-        du dataset courant.
+        Injects the dataset context only when the question is
+        "private". A "shared" question does not need the state of
+        the current dataset.
         """
 
         if scope != "private":
@@ -136,9 +134,7 @@ class AssistantOrchestrator:
 
         predicted_scope = self.classifier.predict(embedding)
 
-        dataset_fingerprint = (
-            self.context_manager.get_dataset_fingerprint()
-        )
+        dataset_fingerprint = self.context_manager.get_dataset_fingerprint()
 
         scope = self._resolve_scope(
             predicted_scope=predicted_scope,
@@ -162,8 +158,10 @@ class AssistantOrchestrator:
 
         logger.info("Semantic cache miss: %s", scope)
 
-        # RAG : Qdrant toujours consulté, dataset_context conditionnel
-        documents = self.retriever.retrieve(question)
+        # RAG: hybrid retrieval is always used, dataset_context is conditional.
+        # The embedding computed above is reused here to avoid encoding
+        # the same query a second time.
+        documents = self.retriever.retrieve(question, embedding=embedding)
 
         dataset_context = self._build_dataset_context(scope)
 

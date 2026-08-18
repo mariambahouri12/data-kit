@@ -23,9 +23,12 @@ class DocumentChunk:
 
 
 class TextChunker:
-    """Split documents by header/section, then enforce a max token size."""
+    """
+    Split documents by Markdown headers and then enforce a maximum
+    token size, with a token overlap between adjacent chunks to
+    preserve context across cut points.
+    """
 
-    # Headers used as split points, with names used to build the context prefix.
     HEADERS_TO_SPLIT_ON = [
         ("#", "h1"),
         ("##", "h2"),
@@ -34,31 +37,39 @@ class TextChunker:
 
     def __init__(
         self,
-        max_tokens: int = 500,
+        chunk_size: int = 500,
+        chunk_overlap: int = 0,
         encoding_name: str = "cl100k_base",
     ) -> None:
-        self.max_tokens = max_tokens
+
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
         self.encoding = tiktoken.get_encoding(encoding_name)
 
         self.header_splitter = MarkdownHeaderTextSplitter(
             headers_to_split_on=self.HEADERS_TO_SPLIT_ON,
             strip_headers=False,
         )
-        # Only invoked when a section exceeds max_tokens.
-        self.size_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-            encoding_name=encoding_name,
-            chunk_size=max_tokens,
-            chunk_overlap=0,
+
+        self.size_splitter = (
+            RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+                encoding_name=encoding_name,
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+            )
         )
 
     def _count_tokens(self, text: str) -> int:
         return len(self.encoding.encode(text))
 
-    def split(
-        self,
-        document,
-    ) -> list[DocumentChunk]:
-        """Split a document into chunks: one per section, further split if too large."""
+    def split(self, document) -> list[DocumentChunk]:
+        """
+        Split a document into chunks.
+
+        The same chunks are later indexed into:
+        - Qdrant for semantic search
+        - Elasticsearch for lexical/BM25 search
+        """
 
         text = document.content
 
@@ -67,28 +78,35 @@ class TextChunker:
 
         sections = self.header_splitter.split_text(text)
 
-        chunks = []
+        chunks: list[DocumentChunk] = []
         chunk_number = 0
 
         for section in sections:
-            header_path = " > ".join(section.metadata.values())
+
+            header_path = " > ".join(
+                str(value) for value in section.metadata.values()
+            )
+
             content = section.page_content.strip()
 
             if not content:
                 continue
 
-            # Split further only if the section exceeds the token limit.
-            if self._count_tokens(content) > self.max_tokens:
+            if self._count_tokens(content) > self.chunk_size:
                 parts = self.size_splitter.split_text(content)
             else:
                 parts = [content]
 
             for part in parts:
+
                 part = part.strip()
+
                 if not part:
                     continue
 
-                prefixed_content = f"{header_path}\n{part}" if header_path else part
+                prefixed_content = (
+                    f"{header_path}\n{part}" if header_path else part
+                )
 
                 chunks.append(
                     DocumentChunk(
@@ -99,6 +117,7 @@ class TextChunker:
                         source=document.source,
                     )
                 )
+
                 chunk_number += 1
 
         return chunks

@@ -11,15 +11,18 @@ from .qdrant_client import QdrantVectorStore
 
 
 class QdrantRetriever:
-    """Retrieve relevant knowledge-base chunks."""
+    """
+    Retrieve relevant chunks using semantic/vector similarity.
+    """
 
     def __init__(
         self,
         embedding_model: EmbeddingModel,
         vector_store: QdrantVectorStore,
-        top_k: int = 5,
-        score_threshold: float = 0.5,
+        top_k: int = 10,
+        score_threshold: Optional[float] = None,
     ) -> None:
+
         self.embedding_model = embedding_model
         self.vector_store = vector_store
         self.top_k = top_k
@@ -29,33 +32,46 @@ class QdrantRetriever:
         self,
         query: str,
         embedding: Optional[np.ndarray] = None,
+        top_k: Optional[int] = None,
     ) -> list[dict]:
         """
-        Retrieve the most relevant chunks.
+        Perform semantic search in Qdrant.
 
+        `top_k` overrides the retriever's default limit for a single
+        call. This is used by HybridRetriever to apply its own
+        `semantic_top_k` without needing a second retriever instance.
         """
 
         if embedding is None:
             embedding = self.embedding_model.encode_query(query)
 
-        results = self.vector_store.client.search(
-            collection_name=self.vector_store.collection_name,
-            query_vector=embedding.tolist(),
-            limit=self.top_k,
-            score_threshold=self.score_threshold,
-        )
+        search_kwargs = {
+            "collection_name": self.vector_store.collection_name,
+            "query_vector": embedding.tolist(),
+            "limit": top_k if top_k is not None else self.top_k,
+        }
+
+        if self.score_threshold is not None:
+            search_kwargs["score_threshold"] = self.score_threshold
+
+        results = self.vector_store.client.search(**search_kwargs)
 
         documents = []
 
-        for result in results:
+        for rank, result in enumerate(results, start=1):
+
             payload = result.payload or {}
 
             documents.append(
                 {
+                    "chunk_id": payload.get("chunk_id", ""),
+                    "document_id": payload.get("document_id", ""),
                     "content": payload.get("content", ""),
                     "document_name": payload.get("document_name", ""),
                     "source": payload.get("source", ""),
                     "score": float(result.score),
+                    "rank": rank,
+                    "retrieval_method": "semantic",
                 }
             )
 
