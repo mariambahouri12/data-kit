@@ -1,13 +1,12 @@
 """
 Assistant service for the DataKit AI assistant.
 
-
 Flow:
     User question
-        ↓
+        ->
     AssistantOrchestrator.ask()
-        ↓
-    dict standardisé pour l'API
+        ->
+    standardized dict for the API
 """
 
 import logging
@@ -18,6 +17,8 @@ import pandas as pd
 from datakit.ai_assistant.models import AIResponse
 from datakit.ai_assistant.context.context_manager import ContextManager
 from datakit.ai_assistant.factory import create_assistant
+
+from .ai_context_state import context_manager as shared_context_manager
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +33,18 @@ class AssistantService:
     - expose dataset/preprocessing context management
     - expose assistant status
     - delegate knowledge-base indexing
-
-
     """
 
     def __init__(
         self,
         context_manager: Optional[ContextManager] = None,
     ) -> None:
-        self._context_manager = context_manager
+        # Defaults to the shared ai_context_state singleton so that
+        # datasets uploaded/preprocessed before any chat happens
+        # (via UploadService / PreprocessingService) are visible to
+        # the assistant as soon as create_assistant() runs. Passing
+        # an explicit context_manager (e.g. in tests) overrides this.
+        self._context_manager = context_manager or shared_context_manager
 
         self._orchestrator = None
         self._initialized = False
@@ -146,7 +150,6 @@ class AssistantService:
         """
         Convert the orchestrator's AssistantResponse into the
         public API format.
-
         """
 
         response = AIResponse(
@@ -246,26 +249,27 @@ class AssistantService:
         )
 
     def _get_context_manager(self) -> ContextManager:
-        """Return the configured context manager."""
+        """
+        Return the configured context manager.
 
-        if self._context_manager is not None:
-            return self._context_manager
+        Since __init__ always falls back to the shared
+        ai_context_state singleton, self._context_manager is never
+        None here — but the orchestrator's own context_manager is
+        preferred once initialized, in case create_assistant() ever
+        substitutes a different instance internally.
+        """
 
-        self._initialize()
+        if self._orchestrator is not None:
+            context_manager = getattr(
+                self._orchestrator,
+                "context_manager",
+                None,
+            )
 
-        if self._orchestrator is None:
-            raise RuntimeError("Assistant is not initialized.")
+            if context_manager is not None:
+                return context_manager
 
-        context_manager = getattr(
-            self._orchestrator,
-            "context_manager",
-            None,
-        )
-
-        if context_manager is None:
-            raise RuntimeError("Context manager is not configured.")
-
-        return context_manager
+        return self._context_manager
 
     # =============================================================
     # KNOWLEDGE BASE
